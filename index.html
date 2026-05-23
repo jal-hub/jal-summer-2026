@@ -852,29 +852,52 @@ async function saveDashboardHtml(){
   try{
     const file=await handle.getFile();
     const oldHtml=await file.text();
-    const dataJson=JSON.stringify(DATA);
-    const newHtml=oldHtml.replace(/let DATA=\{[\s\S]*?\};(?=\s*function|\s*\/\/)/m,`let DATA=${dataJson};`);
-    if(newHtml===oldHtml){
-      // Fallback: try a more relaxed pattern (in case the comment is gone)
-      const fallback=oldHtml.replace(/let DATA=\{[\s\S]*?\};/m,`let DATA=${dataJson};`);
-      if(fallback===oldHtml)throw new Error("Pattern 'let DATA={...};' introuvable dans le HTML.");
-      const writable=await handle.createWritable();
-      await writable.write(fallback);
-      await writable.close();
-    }else{
-      const writable=await handle.createWritable();
-      await writable.write(newHtml);
-      await writable.close();
+
+    // SÉCURITÉ #1 : refuser si le fichier source est déjà vide ou trop petit
+    if(!oldHtml || oldHtml.length<1000){
+      throw new Error(`Fichier source trop petit (${oldHtml.length} octets) — risque de corruption. Restaure depuis un backup d'abord.`);
     }
-    // HTML now has the latest data, clear localStorage so it stops overriding on next reload
+
+    const dataJson=JSON.stringify(DATA);
+    let newHtml=oldHtml.replace(/let DATA=\{[\s\S]*?\};(?=\s*function|\s*\/\/)/m,`let DATA=${dataJson};`);
+    if(newHtml===oldHtml){
+      // Fallback : pattern plus relâché
+      newHtml=oldHtml.replace(/let DATA=\{[\s\S]*?\};/m,`let DATA=${dataJson};`);
+      if(newHtml===oldHtml)throw new Error("Pattern 'let DATA={...};' introuvable dans le HTML.");
+    }
+
+    // SÉCURITÉ #2 : refuser si newHtml est plus petit que prévu (ne devrait jamais arriver)
+    if(!newHtml || newHtml.length<1000){
+      throw new Error(`Nouveau contenu trop petit (${newHtml.length} octets) — abandon pour éviter corruption.`);
+    }
+
+    // SÉCURITÉ #3 : keepExistingData=true + truncate explicite
+    // Évite que le fichier soit tronqué à 0 si l'écriture/close échoue
+    const writable=await handle.createWritable({keepExistingData:true});
+    try{
+      await writable.write({type:"write",position:0,data:newHtml});
+      await writable.truncate(newHtml.length);
+      await writable.close();
+    }catch(writeErr){
+      try{await writable.abort();}catch(_){}
+      throw new Error("Écriture interrompue : "+writeErr.message);
+    }
+
+    // SÉCURITÉ #4 : vérifier APRÈS écriture que le fichier n'est pas vide
+    const checkFile=await handle.getFile();
+    if(checkFile.size<1000){
+      throw new Error(`Le fichier sauvé fait ${checkFile.size} octets (suspect). LocalStorage conservé pour récupération.`);
+    }
+
+    // Tout est OK → on peut nettoyer le localStorage
     try{localStorage.removeItem("summerData");localStorage.removeItem("summerMeta");}catch(e){}
     markSaved();
-    showToast(`✓ Sauvegardé dans ${handle.name}`);
+    showToast(`✓ Sauvegardé dans ${handle.name} (${checkFile.size} octets)`);
     updateHtmlLocationLabel(handle.name);
     return true;
   }catch(e){
     console.error(e);
-    showToast("Échec de la sauvegarde HTML : "+e.message,true);
+    showToast("⚠ Échec sauvegarde HTML : "+e.message+" (tes éditions sont toujours dans le localStorage)",true);
     return false;
   }
 }
