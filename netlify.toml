@@ -1,0 +1,21 @@
+# netlify.toml — Configuration pour jal-summer-2026
+
+[build]
+  publish = "."
+
+# Empêcher Chrome/Safari de cacher trop agressivement le HTML
+# Pour qu'une nouvelle version soit visible immédiatement après push
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+# index.html (page d'accueil) — pareil
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"

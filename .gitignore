@@ -12,3 +12,6 @@
 .idea/
 *.swp
 *.swo
+
+# Script de publish local
+publish.command
