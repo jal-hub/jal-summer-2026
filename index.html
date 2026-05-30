@@ -847,6 +847,46 @@ function computeItems(userId) {
     });
   }
   items.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === "trajet" ? -1 : 1));
+
+  // Bridges "À Dubai / Boulot Dubai" : entre 2 events, si que des routines Dubai
+  // pendant ≥ 2 jours, crée un séjour intermédiaire avec le titre dominant.
+  const colIdx = USER_COL_IDX[userId];
+  if (colIdx != null && items.length >= 2) {
+    const bridges = [];
+    for (let i = 0; i < items.length - 1; i++) {
+      const aEndIso = items[i].dateEnd, bStartIso = items[i + 1].date;
+      const aEnd = parseDate(aEndIso), bStart = parseDate(bStartIso);
+      const gap = daysBetween(aEnd, bStart) - 1;
+      if (gap < 2) continue;  // au moins 2 jours pour mériter un pill
+      const gapStartIso = shiftDate(aEndIso, 1);
+      const gapEndIso = shiftDate(bStartIso, -1);
+      const counts = {}; let allRoutine = true;
+      for (const row of DATA.d) {
+        const dateIso = `${YEAR_DEFAULT}-${row[0]}`;
+        if (dateIso < gapStartIso || dateIso > gapEndIso) continue;
+        const act = row[colIdx];
+        if (!isRoutine(act)) { allRoutine = false; break; }
+        counts[act] = (counts[act] || 0) + 1;
+      }
+      if (!allRoutine) continue;
+      // Titre = activité la plus fréquente, fallback "À Dubai"
+      let titre = "À Dubai";
+      const sorted = Object.entries(counts).sort((x, y) => y[1] - x[1]);
+      if (sorted.length > 0) titre = sorted[0][0];
+      bridges.push({
+        kind: "sejour",
+        date: gapStartIso, dateEnd: gapEndIso,
+        obj: {
+          titre, dateStart: gapStartIso, dateEnd: gapEndIso,
+          tentatif: false, participants: [userId],
+          adresse: "", gmapsUrl: "", contact: "", notes: "", docs: []
+        }
+      });
+    }
+    items.push(...bridges);
+    items.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === "trajet" ? -1 : 1));
+  }
+
   return items;
 }
 
