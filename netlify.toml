@@ -19,3 +19,15 @@
     Cache-Control = "no-cache, no-store, must-revalidate"
     Pragma = "no-cache"
     Expires = "0"
+
+# Avatars + PDFs : revalidation systématique via ETag pour propager
+# les changements de fichiers sans cache navigateur indéfini
+[[headers]]
+  for = "/avatars/*"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+
+[[headers]]
+  for = "/docs/*"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
