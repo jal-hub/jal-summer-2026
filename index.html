@@ -8,7 +8,8 @@
 <meta name="apple-mobile-web-app-title" content="Été 2026">
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=803b1f98">
+<link rel="icon" href="apple-touch-icon.png?v=803b1f98">
 <title>Summer 2026 — Famille Lecointre</title>
 <style>
 :root {
@@ -63,8 +64,8 @@ body {
 .screen { padding: 16px 20px 40px; }
 
 /* HOME */
-.home-title { font-size: 36px; font-weight: 600; letter-spacing: -0.5px; margin-top: 12px; }
-.home-subtitle { font-size: 18px; font-weight: 500; color: var(--text-sec); margin-top: 2px; }
+.home-subtitle { font-size: 18px; font-weight: 500; color: var(--text-sec); margin-top: 12px; }
+.home-title { font-size: 36px; font-weight: 600; letter-spacing: -0.5px; margin-top: 2px; }
 .home-prompt { font-size: 15px; color: var(--text-sec); margin-top: 6px; margin-bottom: 40px; }
 
 .avatar-grid {
@@ -925,8 +926,8 @@ function renderHome() {
   document.body.classList.remove("edit-mode");
   const app = document.getElementById("app"); app.innerHTML = "";
   const screen = el("div", { class: "screen" });
-  screen.appendChild(el("h1", { class: "home-title" }, DATA.meta.title));
-  screen.appendChild(el("div", { class: "home-subtitle", style: { marginBottom: "32px" } }, DATA.meta.family));
+  screen.appendChild(el("div", { class: "home-subtitle" }, DATA.meta.family));
+  screen.appendChild(el("h1", { class: "home-title", style: { marginBottom: "32px" } }, DATA.meta.title));
 
   const grid = el("div", { class: "avatar-grid" });
   const rowParents = el("div", { class: "avatar-row" });
