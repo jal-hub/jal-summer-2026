@@ -253,7 +253,7 @@ body {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   padding: 0 6px;
 }
-.doc-overlay iframe {
+.doc-overlay iframe, .doc-overlay embed, .doc-overlay object {
   flex: 1; border: none; width: 100%;
   background: white;
 }
@@ -1233,9 +1233,10 @@ function renderMonth(year, month, dataStart, dataEnd) {
   return monthEl;
 }
 
-// Ouvre un PDF dans un overlay plein écran in-app (avec close + escape Safari).
-// Marche identique sur Safari, PWA iOS, et desktop. Permet à l'utilisateur de
-// fermer pour revenir au programme — fix iOS PWA qui n'a pas de retour.
+// Ouvre un PDF dans un overlay plein écran in-app, avec close + share natif iOS.
+// - Bouton "Fermer" → revenir au programme (close overlay)
+// - Bouton "Partager" → utilise navigator.share (iOS share sheet : ouvrir Safari, Files, Mail…)
+// - Rendu : <embed> (meilleur que iframe sur iOS pour les PDFs)
 function openPdfOverlay(url, label) {
   const overlay = el("div", { class: "doc-overlay" });
   const bar = el("div", { class: "doc-overlay-bar" });
@@ -1245,12 +1246,28 @@ function openPdfOverlay(url, label) {
   };
   bar.appendChild(el("button", { class: "doc-overlay-close", type: "button", onClick: close }, "← Fermer"));
   bar.appendChild(el("div", { class: "doc-overlay-label" }, label || "Document"));
-  bar.appendChild(el("a", {
-    class: "doc-overlay-extern", href: url,
-    target: "_blank", rel: "noopener noreferrer",
-  }, "Safari ↗"));
+
+  // Action "Partager" : utilise navigator.share pour ouvrir l'iOS share sheet
+  // (Safari, Files, Mail, etc.). Fallback : target=_blank.
+  const shareBtn = el("button", { class: "doc-overlay-extern", type: "button" }, "Partager");
+  shareBtn.addEventListener("click", async () => {
+    const absUrl = url.startsWith("http") ? url : new URL(url, location.href).href;
+    if (navigator.share) {
+      try { await navigator.share({ url: absUrl, title: label || "PDF" }); return; }
+      catch (e) { if (e.name === "AbortError") return; }
+    }
+    // Fallback : nouvel onglet
+    window.open(absUrl, "_blank", "noopener,noreferrer");
+  });
+  bar.appendChild(shareBtn);
   overlay.appendChild(bar);
-  overlay.appendChild(el("iframe", { src: url, title: label || "PDF" }));
+
+  // PDF rendu via <embed> (plus stable que iframe sur iOS pour PDFs)
+  const viewer = el("embed", {
+    src: url, type: "application/pdf", title: label || "PDF"
+  });
+  overlay.appendChild(viewer);
+
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add("show"));
 }
