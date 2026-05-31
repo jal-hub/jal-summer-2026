@@ -1167,7 +1167,9 @@ function buildExpand(container, item) {
       if (/^https?:\/\//.test(rawUrl)) {
         url = rawUrl;
       } else if (rawUrl.startsWith("docs/") || rawUrl.startsWith("avatars/")) {
-        url = `https://raw.githubusercontent.com/jal-hub/jal-summer-2026/main/${rawUrl}`;
+        // jsdelivr CDN : sert depuis GitHub avec les bons MIME types (PDFs inline)
+        // encodeURI gère les espaces et caractères spéciaux
+        url = `https://cdn.jsdelivr.net/gh/jal-hub/jal-summer-2026@main/${encodeURI(rawUrl)}`;
       } else {
         url = rawUrl;
       }
