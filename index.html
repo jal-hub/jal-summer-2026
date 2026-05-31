@@ -775,20 +775,26 @@ function parseTrajetNote(note) {
   if (m = RE_ORIG.exec(note)) out.origine = m[1].trim() + " (" + m[2] + ")";
   if (m = RE_DEST.exec(note)) out.destination = m[1].trim() + " (" + m[2] + ")";
   if (m = RE_COST.exec(note)) out.cost = m[1].trim();
-  // Note "nettoyée" : enlève tout ce qui a déjà été extrait dans les champs ci-dessus
-  // pour ne garder que les commentaires libres ("Vol Dad & Sixtine", etc.)
+  // Note nettoyée : on retire UNIQUEMENT les champs déjà extraits pour le leg PRINCIPAL.
+  // Si la note contient des infos d'un 2e leg (train de raccord par ex.), on les garde.
+  // Heuristique : si "Flight departure time:" est présent, le leg principal est le vol
+  // → on garde "Departure (X):" et "Arrival (X):" car ils appartiennent au 2e leg.
+  // Sinon (train-only par ex.), on strip aussi ces patterns car ils ont déjà été extraits.
+  const hasFlightDep = /Flight departure time:/i.test(note);
   let cleaned = note
-    .replace(/[A-Za-z ]*Booking reference:.*$/gim, '')
-    .replace(/\b[A-Z]{1,3}\s*\d{3,5}\s+(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat).*$/gim, '')
-    .replace(/Flight departure time:.*$/gim, '')
-    .replace(/Flight arrival date time:.*$/gim, '')
-    .replace(/Departure\s*\([^)]+\):.*$/gim, '')
-    .replace(/Arrival\s*\([^)]+\):.*$/gim, '')
-    .replace(/Origin:.*$/gim, '')
-    .replace(/Destination:.*$/gim, '')
-    .replace(/Cost:.*$/gim, '')
-    .replace(/Reference #:.*$/gim, '')
-    .replace(/Ticket #:.*$/gim, '')
+    .replace(/^.*Booking reference:.*$/gim, '')                                          // ligne entière
+    .replace(/^.*[A-Z]{1,3}\s*\d{3,5}\s+(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat).*$/gim, '')      // ligne vol + jour
+    .replace(/^.*Flight departure time:.*$/gim, '')
+    .replace(/^.*Flight arrival date time:.*$/gim, '')
+    .replace(/^\s*Origin:.*$/gim, '')
+    .replace(/^\s*Destination:.*$/gim, '');
+  if (!hasFlightDep) {
+    cleaned = cleaned
+      .replace(/^.*Departure\s*\([^)]+\):.*$/gim, '')
+      .replace(/^.*Arrival\s*\([^)]+\):.*$/gim, '');
+  }
+  cleaned = cleaned
+    .replace(/^\s*Cost:.*$/m, '')   // 1ère ligne Cost seulement (le 2e leg garde son Cost)
     .replace(/\n\s*\n\s*\n+/g, '\n\n')
     .trim();
   out.cleanNote = cleaned;
