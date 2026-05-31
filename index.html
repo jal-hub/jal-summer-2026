@@ -223,6 +223,41 @@ body {
 }
 .doc-pill .icon { width: 14px; height: 14px; color: var(--text-sec); }
 
+/* PDF Overlay viewer (utilisé partout, fix PWA iOS) */
+.doc-overlay {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 400;
+  display: flex; flex-direction: column;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.doc-overlay.show { opacity: 1; }
+.doc-overlay-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: env(safe-area-inset-top, 12px) 16px 10px;
+  padding-top: max(env(safe-area-inset-top, 12px), 12px);
+  background: var(--bg);
+  border-bottom: 0.5px solid var(--separator);
+}
+.doc-overlay-close, .doc-overlay-extern {
+  border: none; background: transparent; color: var(--accent);
+  font-size: 15px; padding: 8px 10px; cursor: pointer;
+  font-family: inherit; text-decoration: none;
+  font-weight: 500;
+  -webkit-appearance: none;
+}
+.doc-overlay-label {
+  flex: 1; text-align: center; font-weight: 500;
+  font-size: 14px; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 0 6px;
+}
+.doc-overlay iframe {
+  flex: 1; border: none; width: 100%;
+  background: white;
+}
+
 .contact-row { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); }
 .contact-row .icon { width: 13px; height: 13px; color: var(--text-sec); }
 .contact-row a { color: var(--accent); text-decoration: none; }
@@ -1125,12 +1160,17 @@ function buildExpand(container, item) {
     const wrap = el("div");
     for (const doc of o.docs) {
       const url = doc.url || `docs/${doc.file}`;
-      // target="_blank" natif : iOS PWA ouvre dans Safari (out-of-app), Safari normal en nouvel onglet.
-      // Pas de window.open() qui casse le routing en mode PWA.
+      const label = doc.label || doc.file;
       const pill = el("a", {
         class: "doc-pill",
-        href: url, target: "_blank", rel: "noopener noreferrer external",
-      }, iconSpan("doc"), el("span", null, doc.label || doc.file));
+        href: url, target: "_blank", rel: "noopener noreferrer",
+      }, iconSpan("doc"), el("span", null, label));
+      // Overlay PDF in-app (avec bouton Fermer + Safari) — fix iOS PWA qui
+      // enferme l'utilisateur sans retour.
+      pill.addEventListener("click", (e) => {
+        e.preventDefault();
+        openPdfOverlay(url, label);
+      });
       wrap.appendChild(pill);
     }
     d.appendChild(wrap);
@@ -1191,6 +1231,28 @@ function renderMonth(year, month, dataStart, dataEnd) {
   }
   monthEl.appendChild(days);
   return monthEl;
+}
+
+// Ouvre un PDF dans un overlay plein écran in-app (avec close + escape Safari).
+// Marche identique sur Safari, PWA iOS, et desktop. Permet à l'utilisateur de
+// fermer pour revenir au programme — fix iOS PWA qui n'a pas de retour.
+function openPdfOverlay(url, label) {
+  const overlay = el("div", { class: "doc-overlay" });
+  const bar = el("div", { class: "doc-overlay-bar" });
+  const close = () => {
+    overlay.style.opacity = "0";
+    setTimeout(() => overlay.remove(), 220);
+  };
+  bar.appendChild(el("button", { class: "doc-overlay-close", type: "button", onClick: close }, "← Fermer"));
+  bar.appendChild(el("div", { class: "doc-overlay-label" }, label || "Document"));
+  bar.appendChild(el("a", {
+    class: "doc-overlay-extern", href: url,
+    target: "_blank", rel: "noopener noreferrer",
+  }, "Safari ↗"));
+  overlay.appendChild(bar);
+  overlay.appendChild(el("iframe", { src: url, title: label || "PDF" }));
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add("show"));
 }
 
 function openDaySheet(iso) {
