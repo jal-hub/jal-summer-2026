@@ -1165,10 +1165,17 @@ function buildExpand(container, item) {
         class: "doc-pill",
         href: url, target: "_blank", rel: "noopener noreferrer",
       }, iconSpan("doc"), el("span", null, label));
-      // Overlay PDF in-app (avec bouton Fermer + Safari) — fix iOS PWA qui
-      // enferme l'utilisateur sans retour.
-      pill.addEventListener("click", (e) => {
+      pill.addEventListener("click", async (e) => {
         e.preventDefault();
+        const absUrl = url.startsWith("http") ? url : new URL(url, location.href).href;
+        const isMobile = /iPhone|iPad|iPod|Android/.test(navigator.userAgent);
+        // Mobile : share sheet iOS → user choisit "Open in Safari" pour la full UX
+        // (zoom, share, save to Files, etc.). Retour via app switcher.
+        if (isMobile && navigator.share) {
+          try { await navigator.share({ url: absUrl, title: label }); return; }
+          catch (err) { if (err.name === "AbortError") return; /* sinon fallback */ }
+        }
+        // Desktop : overlay in-app (PDF embed + close + share)
         openPdfOverlay(url, label);
       });
       wrap.appendChild(pill);
