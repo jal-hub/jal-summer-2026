@@ -795,6 +795,8 @@ function parseTrajetNote(note) {
   }
   cleaned = cleaned
     .replace(/^\s*Cost:.*$/m, '')   // 1ère ligne Cost seulement (le 2e leg garde son Cost)
+    .replace(/^\s*Reference #:\s*$/gim, '')  // strip "Reference #:" sans valeur
+    .replace(/^\s*Ticket #:\s*$/gim, '')     // strip "Ticket #:" sans valeur
     .replace(/\n\s*\n\s*\n+/g, '\n\n')
     .trim();
   out.cleanNote = cleaned;
