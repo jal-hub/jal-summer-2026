@@ -317,6 +317,77 @@ body {
 .context-band .icon { width: 14px; height: 14px; }
 .context-band-label { font-weight: 500; color: var(--text); }
 
+/* Search */
+.search-fab {
+  position: fixed;
+  top: max(env(safe-area-inset-top, 12px), 12px);
+  right: 14px;
+  z-index: 60;
+  background: var(--card);
+  border: 0.5px solid var(--card-border);
+  border-radius: 50%;
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--text);
+  -webkit-appearance: none;
+  font-family: inherit;
+}
+.search-fab:active { transform: scale(0.95); }
+.search-fab .icon { width: 18px; height: 18px; display: block; }
+
+.search-overlay {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 500;
+  display: flex; flex-direction: column;
+}
+.search-header {
+  display: flex; align-items: center;
+  padding: max(env(safe-area-inset-top, 12px), 12px) 14px 10px;
+  background: var(--bg);
+  border-bottom: 0.5px solid var(--separator);
+  gap: 10px;
+}
+.search-close {
+  background: transparent; border: none;
+  color: var(--accent);
+  padding: 6px; cursor: pointer;
+  font-family: inherit;
+  -webkit-appearance: none;
+}
+.search-close .icon { width: 22px; height: 22px; display: block; }
+.search-input {
+  flex: 1;
+  border: 0.5px solid var(--separator);
+  background: var(--card);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 16px;
+  color: var(--text);
+  font-family: inherit;
+  -webkit-appearance: none;
+  outline: none;
+}
+.search-input:focus { border-color: var(--accent); }
+.search-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 14px env(safe-area-inset-bottom, 0px);
+}
+.search-result {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 4px;
+  border-bottom: 0.5px solid var(--separator);
+  cursor: pointer;
+}
+.search-result:active { background: var(--separator); }
+.search-result .avatar { width: 32px; height: 32px; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+.search-result-info { flex: 1; min-width: 0; }
+.search-result-title { font-size: 14px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-result-meta { font-size: 12px; color: var(--text-sec); margin-top: 2px; }
+.search-empty { padding: 40px 20px; text-align: center; color: var(--text-sec); }
+
 .empty-state { padding: 60px 24px; text-align: center; color: var(--text-sec); }
 .edit-screen { padding: 40px 24px; text-align: center; color: var(--text-sec); }
 .edit-screen h1 { font-size: 22px; color: var(--text); margin-bottom: 16px; }
@@ -712,6 +783,7 @@ const ICONS = {
   users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
 };
 
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]); }
@@ -1029,6 +1101,75 @@ function chipText(participants, viewerId) {
   return `avec ${noms.slice(0,-1).join(", ")} et ${noms[noms.length-1]}`;
 }
 
+// === Recherche ====================================================================
+function openSearch() {
+  const overlay = el("div", { class: "search-overlay" });
+  const close = () => overlay.remove();
+
+  const hdr = el("div", { class: "search-header" });
+  hdr.appendChild(el("button", { class: "search-close", type: "button", onClick: close, title: "Fermer" }, iconSpan("back")));
+  const input = el("input", { class: "search-input", type: "text", placeholder: "Rechercher (lieu, vol, ref, contact…)" });
+  hdr.appendChild(input);
+  overlay.appendChild(hdr);
+
+  const results = el("div", { class: "search-results" });
+  overlay.appendChild(results);
+
+  function update() {
+    const q = input.value.trim().toLowerCase();
+    results.innerHTML = "";
+    if (q.length < 2) {
+      results.appendChild(el("div", { class: "search-empty" }, "Tape au moins 2 caractères…"));
+      return;
+    }
+    const matches = [];
+    const seen = new Set();
+    for (const u of DATA.users) {
+      for (const item of computeItems(u.id)) {
+        const o = item.obj;
+        const hay = [
+          o.titre, o.notes, o.compagnie, o.vol, o.reference,
+          o.adresse, o.contact, o.gmapsUrl,
+          ...(o.docs || []).map(d => d.label || ""),
+        ].filter(Boolean).join(" ").toLowerCase();
+        if (hay.includes(q)) {
+          // dédup : pas 5x la même carte pour Famille au complet (Villedieu, Fleac…)
+          const dedupKey = (item.kind === "sejour" ? o.titre + "|" + o.dateStart + "|" + o.dateEnd : o.titre + "|" + o.date) + "|" + u.id;
+          if (!seen.has(dedupKey)) { seen.add(dedupKey); matches.push({ user: u, item }); }
+        }
+      }
+    }
+    if (matches.length === 0) {
+      results.appendChild(el("div", { class: "search-empty" }, "Aucun résultat"));
+      return;
+    }
+    for (const { user, item } of matches.slice(0, 100)) {
+      const o = item.obj;
+      const isSejour = item.kind === "sejour";
+      const dateLabel = isSejour
+        ? (o.dateStart === o.dateEnd ? fmtDateSingle(o.dateStart) : fmtDateRange(o.dateStart, o.dateEnd))
+        : fmtDateSingle(o.date);
+      const row = el("div", { class: "search-result" },
+        avatarEl(user),
+        el("div", { class: "search-result-info" },
+          el("div", { class: "search-result-title" }, o.titre),
+          el("div", { class: "search-result-meta" }, user.nom + " · " + dateLabel),
+        ),
+      );
+      row.addEventListener("click", () => {
+        close();
+        navTo({ user: user.id, day: isSejour ? o.dateStart : o.date });
+      });
+      results.appendChild(row);
+    }
+  }
+
+  input.addEventListener("input", update);
+  input.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  document.body.appendChild(overlay);
+  setTimeout(() => input.focus(), 80);
+}
+
 function getRoute() {
   const p = new URLSearchParams(location.search);
   return { edit: p.has("edit"), user: p.get("user"), day: p.get("day") };
@@ -1074,6 +1215,14 @@ function renderHome() {
   screen.appendChild(grid);
   app.appendChild(screen);
   app.appendChild(renderCalendar());
+  addSearchFab();
+}
+
+function addSearchFab() {
+  // Évite doublon
+  document.querySelectorAll(".search-fab").forEach(e => e.remove());
+  const fab = el("button", { class: "search-fab", type: "button", title: "Rechercher", onClick: openSearch }, iconSpan("search"));
+  document.body.appendChild(fab);
 }
 
 function renderProgramme(userId) {
@@ -1146,6 +1295,8 @@ function renderProgramme(userId) {
   const cards = el("div", { class: "cards" });
   for (const it of items) cards.appendChild(renderCard(it, userId, parseDate(it.dateEnd) < TODAY));
   app.appendChild(cards);
+
+  addSearchFab();
 
   // Auto-expand + scroll si l'URL a un paramètre ?day=YYYY-MM-DD
   const routeDay = getRoute().day;
@@ -1688,6 +1839,8 @@ window.addEventListener("beforeunload", (e) => {
 // === EDIT MODE : grille + cell editor ============================================
 function renderEdit() {
   document.body.classList.add("edit-mode");
+  // Retire le FAB recherche (pas d'usage en édition)
+  document.querySelectorAll(".search-fab").forEach(e => e.remove());
   const app = document.getElementById("app"); app.innerHTML = "";
 
   const hdr = el("div", { class: "edit-header" });
@@ -2309,6 +2462,13 @@ function openAddDayEditor() {
 
 window.addEventListener("DOMContentLoaded", render);
 window.addEventListener("popstate", render);
+// Cmd+K / Ctrl+K pour ouvrir la recherche
+window.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    if (!document.querySelector(".search-overlay")) openSearch();
+  }
+});
 </script>
 </body>
 </html>
