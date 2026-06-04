@@ -1200,6 +1200,7 @@ const LOCATION_OVERRIDES = {
   "Chantier Jeune Sainte Marguerite": { query: "Cannes", display: "Île Sainte-Marguerite" },
   "Les Roches Summer Camp": { query: "Marbella", display: "Marbella" },
   "Saint Jean Bruel": "Saint-Jean-du-Bruel",
+  "Saint Jean du Bruel": "Saint-Jean-du-Bruel",
   "Mariage Amaury & Julie": { query: "Tendu", display: "Tendu (Indre)" },
   "Mariage Amaury": { query: "Tendu", display: "Tendu (Indre)" },
   "Vacance Famille Villedieu": { query: "Vaison-la-Romaine", display: "Villedieu (Vaucluse)" },
@@ -1207,7 +1208,11 @@ const LOCATION_OVERRIDES = {
 
 function getLocationOverride(sejour) {
   if (!sejour.titre) return null;
-  const cleanedTitre = sejour.titre.replace(/\s*\?+\s*$/, "").trim();
+  // Strip (TBC) et ? avant lookup
+  const cleanedTitre = sejour.titre
+    .replace(/\s*\(TBC\)\s*$/i, "")
+    .replace(/\s*\?+\s*$/, "")
+    .trim();
   const ov = LOCATION_OVERRIDES[cleanedTitre];
   if (!ov) return null;
   return typeof ov === "string" ? { query: ov, display: null } : ov;
