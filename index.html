@@ -263,6 +263,47 @@ body {
 .contact-row .icon { width: 13px; height: 13px; color: var(--text-sec); }
 .contact-row a { color: var(--accent); text-decoration: none; }
 
+/* Share buttons */
+.card-share {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
+  background: var(--separator);
+  border: none;
+  border-radius: 999px;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-appearance: none;
+  align-self: flex-start;
+}
+.card-share:active { opacity: 0.6; }
+.card-share .icon { width: 13px; height: 13px; }
+
+.doc-pill-wrap { display: inline-flex; align-items: stretch; margin-right: 6px; margin-top: 4px; }
+.doc-pill-wrap .doc-pill {
+  margin-right: 0; margin-top: 0;
+  border-top-right-radius: 0; border-bottom-right-radius: 0;
+}
+.doc-share {
+  background: var(--separator);
+  border: none;
+  border-left: 0.5px solid var(--card-border);
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  padding: 0 10px;
+  cursor: pointer;
+  color: var(--text-sec);
+  font-family: inherit;
+  -webkit-appearance: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.doc-share:active { opacity: 0.6; }
+.doc-share .icon { width: 13px; height: 13px; }
+
 .icon { display: inline-block; vertical-align: middle; }
 .icon svg { width: 100%; height: 100%; display: block; }
 
@@ -675,6 +716,7 @@ const ICONS = {
   doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>',
   users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+  share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>',
 };
 
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]); }
@@ -1178,7 +1220,7 @@ function renderCard(item, userId, isPast) {
   }
 
   const expanded = el("div", { class: "card-expand", style: { display: "none" } });
-  buildExpand(expanded, item);
+  buildExpand(expanded, item, userId);
   card.appendChild(expanded);
 
   card.addEventListener("click", () => {
@@ -1191,7 +1233,7 @@ function renderCard(item, userId, isPast) {
   return card;
 }
 
-function buildExpand(container, item) {
+function buildExpand(container, item, userId) {
   const o = item.obj;
   const isSejour = item.kind === "sejour";
 
@@ -1251,13 +1293,88 @@ function buildExpand(container, item) {
         class: "doc-pill",
         href: url, target: "_blank", rel: "noopener noreferrer",
       }, iconSpan("doc"), el("span", null, label));
-      // Pas de e.preventDefault() : on laisse le navigateur ouvrir l'URL externe
-      // (iOS PWA ouvre Safari natif puisque c'est cross-origin)
-      wrap.appendChild(pill);
+      const pdfShareBtn = el("button", { class: "doc-share", type: "button", title: "Partager ce PDF" }, iconSpan("share"));
+      pdfShareBtn.addEventListener("click", (e) => {
+        e.preventDefault(); e.stopPropagation();
+        sharePdf(url, label);
+      });
+      const pillWrap = el("span", { class: "doc-pill-wrap" }, pill, pdfShareBtn);
+      wrap.appendChild(pillWrap);
     }
     d.appendChild(wrap);
     container.appendChild(d);
   }
+  // Card-level share button : envoie un message structuré (titre, dates, infos, docs URLs)
+  if (userId) {
+    const shareBtn = el("button", { class: "card-share", type: "button" }, iconSpan("share"), "Partager");
+    shareBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      shareItem(item, userId);
+    });
+    container.appendChild(shareBtn);
+  }
+}
+
+// === Share helpers ================================================================
+function buildShareTextForItem(item, userId) {
+  const o = item.obj;
+  const isSejour = item.kind === "sejour";
+  const lines = [];
+  const emoji = isSejour ? "🏠" : ({vol:"✈️", train:"🚆", voiture:"🚗"}[o.type] || "↔️");
+  lines.push(`${emoji} ${o.titre}`);
+  if (isSejour) {
+    lines.push(`${fmtDateRange(o.dateStart, o.dateEnd)} · ${nightsFromRange(o.dateStart, o.dateEnd)} nuits`);
+    if (o.adresse) lines.push("📍 " + o.adresse);
+    if (o.gmapsUrl) lines.push(o.gmapsUrl);
+    if (o.contact) lines.push("📞 " + o.contact);
+  } else {
+    let meta = fmtDateSingle(o.date);
+    if (o.heureDepart) meta += ` · ${o.heureDepart} → ${o.heureArrivee || ''}`;
+    lines.push(meta);
+    const infoParts = [];
+    if (o.compagnie) infoParts.push(o.compagnie);
+    if (o.vol) infoParts.push(o.vol);
+    if (o.reference) infoParts.push("Réf. " + o.reference);
+    if (o.cost) infoParts.push(o.cost);
+    if (infoParts.length) lines.push(infoParts.join(" · "));
+  }
+  if (o.notes && o.notes.trim()) { lines.push(""); lines.push(o.notes.trim()); }
+  if (o.docs && o.docs.length) {
+    lines.push("");
+    for (const d of o.docs) {
+      let docUrl = d.url || `docs/${d.file}`;
+      if (!/^https?:\/\//.test(docUrl) && (docUrl.startsWith("docs/") || docUrl.startsWith("avatars/"))) {
+        docUrl = `https://cdn.jsdelivr.net/gh/jal-hub/jal-summer-2026@main/${encodeURI(docUrl)}`;
+      }
+      lines.push("📄 " + (d.label || d.file) + " : " + docUrl);
+    }
+  }
+  lines.push("");
+  const appUrl = new URL(location.href);
+  [...appUrl.searchParams.keys()].forEach(k => appUrl.searchParams.delete(k));
+  appUrl.searchParams.set("user", userId);
+  appUrl.searchParams.set("day", isSejour ? o.dateStart : o.date);
+  lines.push("📱 " + appUrl.toString());
+  return lines.join("\n");
+}
+
+async function shareItem(item, userId) {
+  const text = buildShareTextForItem(item, userId);
+  if (navigator.share) {
+    try { await navigator.share({ text, title: item.obj.titre }); return; }
+    catch (e) { if (e.name === "AbortError") return; }
+  }
+  try { await navigator.clipboard.writeText(text); showToast("Copié dans le presse-papier"); }
+  catch (e) { showToast("Partage indisponible", true); }
+}
+
+async function sharePdf(url, label) {
+  if (navigator.share) {
+    try { await navigator.share({ url, title: label }); return; }
+    catch (e) { if (e.name === "AbortError") return; }
+  }
+  try { await navigator.clipboard.writeText(url); showToast("Lien copié"); }
+  catch (e) { showToast("Partage indisponible", true); }
 }
 
 function blockField(label, value) {
