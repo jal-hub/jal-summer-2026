@@ -733,7 +733,17 @@ const ROUTINE_ACTS = new Set([
   "WeekEnd Dubai","Boulot Dubai","Ecole Dubai","Dubai",
   "Dubai - Off","Stage ou Petit Boulot","School Start"
 ]);
-function isRoutine(act) { return !act || ROUTINE_ACTS.has(act); }
+// Préfixes qui marquent une routine (ex. "Boulot Dubai JAL", "WeekEnd Dubai Carole")
+const ROUTINE_PREFIXES = ["boulot dubai","weekend dubai","ecole dubai","dubai - off"];
+function isRoutine(act) {
+  if (!act) return true;
+  if (ROUTINE_ACTS.has(act)) return true;
+  const lower = act.trim().toLowerCase();
+  for (const p of ROUTINE_PREFIXES) {
+    if (lower === p || lower.startsWith(p + " ")) return true;
+  }
+  return false;
+}
 function isTrajet(act) {
   if (!act) return false;
   if (/^(Flight|Vol|Fly|Train|TGV|TER|Trajet)\b/i.test(act)) return true;
