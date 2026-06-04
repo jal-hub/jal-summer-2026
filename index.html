@@ -394,6 +394,33 @@ body {
 .search-result-meta { font-size: 12px; color: var(--text-sec); margin-top: 2px; }
 .search-empty { padding: 40px 20px; text-align: center; color: var(--text-sec); }
 
+/* Météo */
+.weather-block { margin-top: 4px; }
+.weather-label { font-size: 12px; color: var(--text-sec); font-weight: 500; margin-bottom: 8px; }
+.weather-strip {
+  display: flex; gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -14px;
+  padding: 0 14px 4px;
+  scrollbar-width: none;
+}
+.weather-strip::-webkit-scrollbar { display: none; }
+.weather-cell {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 5px;
+  padding: 10px 8px;
+  background: var(--bg);
+  border-radius: 12px;
+  min-width: 52px;
+}
+.weather-day { font-size: 11px; color: var(--text-sec); font-weight: 500; }
+.weather-icon { font-size: 22px; line-height: 1; }
+.weather-temp { font-size: 14px; font-weight: 500; color: var(--text); }
+.weather-hint { font-size: 12px; color: var(--text-ter); font-style: italic; }
+.weather-loading { font-size: 12px; color: var(--text-sec); }
+
 .empty-state { padding: 60px 24px; text-align: center; color: var(--text-sec); }
 .edit-screen { padding: 40px 24px; text-align: center; color: var(--text-sec); }
 .edit-screen h1 { font-size: 22px; color: var(--text); margin-bottom: 16px; }
@@ -1107,6 +1134,135 @@ function chipText(participants, viewerId) {
   return `avec ${noms.slice(0,-1).join(", ")} et ${noms[noms.length-1]}`;
 }
 
+// === Météo (Open-Meteo, free, no API key) ========================================
+const WMO_EMOJI = {
+  0:"☀️",1:"🌤️",2:"⛅",3:"☁️",
+  45:"🌫️",48:"🌫️",
+  51:"🌦️",53:"🌦️",55:"🌦️",
+  56:"🌧️",57:"🌧️",
+  61:"🌧️",63:"🌧️",65:"🌧️",
+  66:"🌧️",67:"🌧️",
+  71:"❄️",73:"❄️",75:"❄️",77:"❄️",
+  80:"🌧️",81:"🌧️",82:"🌧️",
+  85:"❄️",86:"❄️",
+  95:"⛈️",96:"⛈️",99:"⛈️",
+};
+const DOW_ABBR_FR = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+
+function lsCacheGet(key, ttlMs) {
+  try {
+    const raw = localStorage.getItem(key); if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (Date.now() - ts > ttlMs) return null;
+    return data;
+  } catch (e) { return null; }
+}
+function lsCacheSet(key, data) {
+  try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch (e) {}
+}
+
+async function geocode(query) {
+  if (!query) return null;
+  const k = "geo_" + query.toLowerCase().trim();
+  const cached = lsCacheGet(k, 30*24*3600*1000);  // 30 days
+  if (cached) return cached;
+  try {
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=fr&format=json`;
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!j.results || !j.results.length) return null;
+    const res = j.results[0];
+    const data = { lat: res.latitude, lng: res.longitude, name: res.name, country: res.country };
+    lsCacheSet(k, data);
+    return data;
+  } catch (e) { return null; }
+}
+
+async function fetchForecast(lat, lng, startIso, endIso) {
+  const k = `wx_${lat.toFixed(2)}_${lng.toFixed(2)}_${startIso}_${endIso}`;
+  const cached = lsCacheGet(k, 3*3600*1000);  // 3 hours
+  if (cached) return cached;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&start_date=${startIso}&end_date=${endIso}`;
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!j.daily || !j.daily.time) return null;
+    lsCacheSet(k, j.daily);
+    return j.daily;
+  } catch (e) { return null; }
+}
+
+// Extrait une query géocodable du séjour
+function extractLocationQuery(sejour) {
+  if (sejour.adresse) {
+    const parts = sejour.adresse.split(",").map(p => p.trim()).filter(Boolean);
+    if (parts.length >= 2) return parts[parts.length - 1];
+    return sejour.adresse;
+  }
+  if (sejour.titre) {
+    return sejour.titre
+      .replace(/\s+chez\s+\S+.*/i, "")
+      .replace(/\s*\(TBC\)/i, "")
+      .replace(/\s*\?+\s*$/, "")
+      .trim();
+  }
+  return null;
+}
+
+function isoDay(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+async function renderWeatherBlock(container, sejour) {
+  const start = parseDate(sejour.dateStart);
+  const end = parseDate(sejour.dateEnd);
+  const horizon = new Date(TODAY); horizon.setDate(horizon.getDate() + 15);
+
+  if (end < TODAY) return;  // séjour passé
+
+  if (start > horizon) {
+    // Trop loin pour Open-Meteo (16j max)
+    const daysAway = Math.round((start - TODAY) / 86400000);
+    const hint = el("div", { class: "weather-block weather-hint" }, `☁️ Météo disponible ${daysAway - 16}j avant le départ`);
+    container.appendChild(hint);
+    return;
+  }
+
+  const fetchStart = start > TODAY ? start : TODAY;
+  const fetchEnd = end < horizon ? end : horizon;
+
+  const query = extractLocationQuery(sejour);
+  if (!query) return;
+
+  const block = el("div", { class: "weather-block" });
+  const loading = el("div", { class: "weather-loading" }, "☁️ Météo en cours…");
+  block.appendChild(loading);
+  container.appendChild(block);
+
+  const geo = await geocode(query);
+  if (!geo) { block.remove(); return; }
+
+  const daily = await fetchForecast(geo.lat, geo.lng, isoDay(fetchStart), isoDay(fetchEnd));
+  if (!daily) { block.remove(); return; }
+
+  block.innerHTML = "";
+  block.appendChild(el("div", { class: "weather-label" }, `Météo prévue à ${geo.name}`));
+  const strip = el("div", { class: "weather-strip" });
+  for (let i = 0; i < daily.time.length; i++) {
+    const d = parseDate(daily.time[i]);
+    const tmax = Math.round(daily.temperature_2m_max[i]);
+    const code = daily.weather_code[i];
+    strip.appendChild(el("div", { class: "weather-cell" },
+      el("div", { class: "weather-day" }, DOW_ABBR_FR[d.getDay()] + " " + d.getDate()),
+      el("div", { class: "weather-icon" }, WMO_EMOJI[code] || "·"),
+      el("div", { class: "weather-temp" }, tmax + "°"),
+    ));
+  }
+  block.appendChild(strip);
+}
+
 // === Recherche ====================================================================
 function openSearch() {
   const overlay = el("div", { class: "search-overlay" });
@@ -1411,6 +1567,8 @@ function buildExpand(container, item, userId) {
       c.appendChild(el("div", { class: "contact-row" }, iconSpan("phone"), el("span", null, o.contact)));
       container.appendChild(c);
     }
+    // Météo (fire-and-forget : se remplit quand prête)
+    renderWeatherBlock(container, o);
   } else {
     // Trajet : 1 seule ligne compacte (compagnie · vol · réf · coût) + note nettoyée
     const infoParts = [];
