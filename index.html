@@ -1216,22 +1216,10 @@ function isoDay(d) {
 }
 
 async function renderWeatherBlock(container, sejour) {
-  const start = parseDate(sejour.dateStart);
-  const end = parseDate(sejour.dateEnd);
-  const horizon = new Date(TODAY); horizon.setDate(horizon.getDate() + 15);
-
-  if (end < TODAY) return;  // séjour passé
-
-  if (start > horizon) {
-    // Trop loin pour Open-Meteo (16j max)
-    const daysAway = Math.round((start - TODAY) / 86400000);
-    const hint = el("div", { class: "weather-block weather-hint" }, `☁️ Météo disponible ${daysAway - 16}j avant le départ`);
-    container.appendChild(hint);
-    return;
-  }
-
-  const fetchStart = start > TODAY ? start : TODAY;
-  const fetchEnd = end < horizon ? end : horizon;
+  // Stratégie simplifiée : météo today + 7j sur le lieu du séjour,
+  // peu importe la date du séjour. Update auto via l'API à chaque ouverture.
+  const fetchStart = new Date(TODAY);
+  const fetchEnd = new Date(TODAY); fetchEnd.setDate(fetchEnd.getDate() + 6);
 
   const query = extractLocationQuery(sejour);
   if (!query) return;
@@ -1248,7 +1236,7 @@ async function renderWeatherBlock(container, sejour) {
   if (!daily) { block.remove(); return; }
 
   block.innerHTML = "";
-  block.appendChild(el("div", { class: "weather-label" }, `Météo prévue à ${geo.name}`));
+  block.appendChild(el("div", { class: "weather-label" }, `Météo à ${geo.name} — 7 jours`));
   const strip = el("div", { class: "weather-strip" });
   for (let i = 0; i < daily.time.length; i++) {
     const d = parseDate(daily.time[i]);
