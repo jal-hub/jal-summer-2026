@@ -334,17 +334,13 @@ body {
 .search-fab:active { transform: scale(0.95); }
 .search-fab .icon { display: block; }
 
-.search-fab { width: 30px; height: 30px; }
-.search-fab .icon { width: 14px; height: 14px; }
-/* Home : 8px sous Sixtine (= sous la 2e rangée d'avatars de la home) */
-.search-fab.is-home {
-  top: calc(env(safe-area-inset-top, 0px) + 340px);
-}
-/* Programme : 8px sous Sixtine du switcher (= sous le back-row) */
-.search-fab.is-programme {
+/* Position unique sur toutes les vues : 30px, sous Sixtine du switcher prog */
+.search-fab {
+  width: 30px; height: 30px;
   top: calc(env(safe-area-inset-top, 0px) + 56px);
   right: 20px;
 }
+.search-fab .icon { width: 14px; height: 14px; }
 
 .search-overlay {
   position: fixed; inset: 0;
