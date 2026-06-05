@@ -1940,12 +1940,12 @@ function getUserTodayStatus(userId, isoToday) {
   return { kind: "sejour", label: meta.title, sub: meta.sub || "", tentatif };
 }
 
-const DOW_LONG_FR = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
+const DAYS_LONG_FR = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
 function renderTodayWidget() {
   const isoToday = isoDay(TODAY);
   const card = el("div", { class: "today-widget" });
 
-  const dowName = DOW_LONG_FR[TODAY.getDay()];
+  const dowName = DAYS_LONG_FR[TODAY.getDay()];
   const monthName = MONTHS_LONG[TODAY.getMonth()];
 
   const headerRow = el("div", { class: "today-header" });
