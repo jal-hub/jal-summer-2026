@@ -794,6 +794,331 @@ body.edit-mode .app { max-width: 100%; }
 }
 .toast.show { opacity: 1; }
 .toast.error { background: rgba(207, 48, 48, 0.95); }
+
+/* ============================================================
+   PRINT VIEW (?print=1) — calendrier 3 pages pour grands-parents
+   ============================================================ */
+.print-link-wrap {
+  text-align: center;
+  padding: 24px 16px 32px;
+}
+.print-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-sec);
+  text-decoration: none;
+  padding: 10px 18px;
+  border: 0.5px solid var(--separator);
+  border-radius: 999px;
+  background: var(--card);
+}
+.print-link .icon { width: 16px; height: 16px; }
+
+body.print-mode {
+  background: #6b6b71;
+}
+body.print-mode .app { max-width: none; }
+
+.print-toolbar {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--bg);
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 0.5px solid var(--separator);
+}
+.print-toolbar-title {
+  font-size: 14px; font-weight: 500;
+  flex: 1; text-align: center;
+  color: var(--text);
+}
+.print-go-btn {
+  background: var(--accent); color: white;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-appearance: none;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.print-go-btn .icon { width: 14px; height: 14px; }
+
+.print-hint {
+  max-width: 210mm;
+  margin: 12px auto 0;
+  padding: 10px 14px;
+  background: var(--accent-bg);
+  color: var(--accent-text);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.print-page {
+  /* A4 portrait : 210 × 297 mm */
+  width: 210mm;
+  min-height: 297mm;
+  background: white;
+  color: #000;
+  margin: 20px auto;
+  padding: 14mm 12mm 10mm;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  page-break-after: always;
+  display: flex;
+  flex-direction: column;
+}
+.print-page:last-of-type { page-break-after: auto; }
+
+.p-header {
+  text-align: center;
+  margin-bottom: 5mm;
+  flex-shrink: 0;
+}
+.p-eyebrow {
+  font-size: 10pt;
+  color: #666;
+  letter-spacing: 0.3pt;
+}
+.p-title {
+  font-size: 26pt;
+  font-weight: 700;
+  margin-top: 1mm;
+  letter-spacing: -0.5pt;
+  color: #111;
+}
+
+.p-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  flex: 1;
+}
+.p-table thead { display: table-header-group; }
+.p-th {
+  border: 0.4pt solid #999;
+  padding: 4pt 2pt;
+  background: #ececef;
+  font-weight: 600;
+  font-size: 9pt;
+  text-align: center;
+  vertical-align: middle;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+.p-th-date { width: 18mm; }
+.p-th-user {
+  padding: 3pt 2pt;
+}
+.p-th-name {
+  font-size: 9pt;
+  font-weight: 600;
+  margin-top: 2pt;
+}
+.p-avatar {
+  width: 22pt; height: 22pt;
+  border-radius: 50%;
+  display: block;
+  margin: 0 auto 1pt;
+  object-fit: cover;
+}
+.p-avatar-fallback {
+  width: 22pt; height: 22pt;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1pt;
+  font-size: 9pt; font-weight: 700;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.p-row {
+  height: 7.6mm;  /* hauteur fixe pour consistency entre jours */
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+.p-row.is-weekend .p-date-cell {
+  background: #e8edf3;
+}
+
+.p-cell {
+  border: 0.4pt solid #c8c8cc;
+  padding: 0;
+  vertical-align: middle;
+  text-align: center;
+  line-height: 1.1;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  overflow: hidden;
+  height: 7.6mm;
+}
+.p-cell-inner {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  padding: 1pt 2pt;
+  overflow: hidden;
+  gap: 0.5pt;
+}
+.p-date-cell {
+  background: #f5f5f7;
+  text-align: center;
+}
+.p-date-cell .p-cell-inner { flex-direction: row; gap: 4pt; }
+.p-dow {
+  font-size: 7.5pt;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 0.3pt;
+}
+.p-day {
+  font-weight: 700;
+  font-size: 10.5pt;
+  color: #111;
+}
+
+.p-routine {
+  color: #999;
+  font-style: italic;
+  font-size: 7.8pt;
+}
+
+.p-sejour { font-size: 8pt; }
+.p-sejour-title {
+  font-weight: 700;
+  font-size: 8pt;
+  line-height: 1.05;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.p-sejour-sub {
+  font-size: 6.5pt;
+  font-weight: 400;
+  opacity: 0.85;
+  line-height: 1.05;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Couleur par GROUPE D'ACTIVITÉ — bande horizontale uniforme quand la
+   famille est ensemble au même endroit. Pastels assez doux pour rester
+   lisibles à l'impression couleur ET en N&B (différence de luminosité). */
+.p-sejour.g-atlantique { background: #cfdef5; color: #0a3a72; }
+.p-sejour.g-med        { background: #fcdfbf; color: #7d3e08; }
+.p-sejour.g-montagne   { background: #d5ebc4; color: #2a4f12; }
+.p-sejour.g-etranger   { background: #e2ddf6; color: #2f2868; }
+.p-sejour.g-evenement  { background: #e6e6ea; color: #424247; }
+
+/* Gonfaron : même orange que le groupe Méditerranée, mais avec des hachures
+   diagonales +45° (sens INVERSE de "tentatif" qui est en -45°), pour le
+   distinguer de Villedieu sans changer son appartenance au groupe. */
+.p-sejour.is-gonfaron {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(125, 62, 8, 0.13) 0,
+    rgba(125, 62, 8, 0.13) 1.2pt,
+    transparent 1.2pt,
+    transparent 4.5pt
+  );
+}
+
+.p-sejour.is-tentatif {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(0,0,0,0.04) 0,
+    rgba(0,0,0,0.04) 2pt,
+    transparent 2pt,
+    transparent 5pt
+  );
+  border: 0.5pt dashed #888;
+}
+
+.p-trajet {
+  background: #eaf3ff;
+  color: #053673;
+}
+.p-trajet-route {
+  font-weight: 700;
+  font-size: 7.8pt;
+  line-height: 1.05;
+}
+.p-trajet-time {
+  font-size: 6.8pt;
+  font-weight: 600;
+  color: #1f5390;
+  line-height: 1.05;
+}
+
+.p-empty { background: white; }
+
+.p-footer {
+  text-align: center;
+  font-size: 8.5pt;
+  color: #888;
+  margin-top: 3mm;
+  flex-shrink: 0;
+}
+.p-footer-url-line {
+  margin-top: 1.5mm;
+  font-size: 7.5pt;
+}
+.p-footer-url {
+  font-weight: 600;
+  color: #555;
+  letter-spacing: 0.2pt;
+}
+.p-footer-legend {
+  font-size: 7.2pt;
+  display: flex;
+  justify-content: center;
+  gap: 10pt;
+  flex-wrap: wrap;
+  color: #555;
+}
+.p-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3pt;
+  white-space: nowrap;
+}
+.p-legend-sw {
+  display: inline-block;
+  width: 9pt; height: 9pt;
+  border-radius: 2pt;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+.p-legend-sw.g-atlantique { background: #cfdef5; }
+.p-legend-sw.g-med        { background: #fcdfbf; }
+.p-legend-sw.g-montagne   { background: #d5ebc4; }
+.p-legend-sw.g-etranger   { background: #e2ddf6; }
+.p-legend-sw.g-evenement  { background: #e6e6ea; }
+.p-legend-sw.is-tentatif-sw {
+  background: white;
+  border: 0.5pt dashed #888;
+}
+
+@media print {
+  body.print-mode { background: white; }
+  .print-toolbar, .print-hint, .search-fab { display: none !important; }
+  .print-page {
+    margin: 0; box-shadow: none;
+    width: auto; min-height: auto;
+    padding: 8mm 8mm 6mm;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+}
 </style>
 </head>
 <body>
@@ -817,6 +1142,7 @@ const ICONS = {
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+  printer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>',
 };
 
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]); }
@@ -1362,7 +1688,7 @@ function openSearch() {
 
 function getRoute() {
   const p = new URLSearchParams(location.search);
-  return { edit: p.has("edit"), user: p.get("user"), day: p.get("day") };
+  return { edit: p.has("edit"), print: p.has("print"), user: p.get("user"), day: p.get("day") };
 }
 function navTo(params) {
   const url = new URL(location.href);
@@ -1374,8 +1700,10 @@ function navTo(params) {
 }
 
 function render() {
+  document.body.classList.remove("print-mode");
   const r = getRoute();
   if (r.edit) renderEdit();
+  else if (r.print) renderPrint();
   else if (r.user) renderProgramme(r.user);
   else renderHome();
 }
@@ -1405,14 +1733,301 @@ function renderHome() {
   screen.appendChild(grid);
   app.appendChild(screen);
   app.appendChild(renderCalendar());
+  app.appendChild(el("div", { class: "print-link-wrap" },
+    el("a", {
+      class: "print-link",
+      href: "?print=1",
+      onClick: (e) => { e.preventDefault(); navTo({ print: 1 }); },
+    }, iconSpan("printer"), "Imprimer pour grands-parents")
+  ));
   addSearchFab();
 }
 
 function addSearchFab() {
   document.querySelectorAll(".search-fab").forEach(e => e.remove());
-  const variant = getRoute().user ? "is-programme" : "is-home";
+  const r = getRoute();
+  if (r.print || r.edit) return;  // no FAB in print/edit
+  const variant = r.user ? "is-programme" : "is-home";
   const fab = el("button", { class: "search-fab " + variant, type: "button", title: "Rechercher", onClick: openSearch }, iconSpan("search"));
   document.body.appendChild(fab);
+}
+
+// === PRINT VIEW (?print=1) =====================================================
+// 3 pages A4 portrait (juin, juillet, août). Grille jour × user.
+// Pensé pour être imprimé et mis sur le frigo des grands-parents.
+const PRINT_MONTHS = [
+  { num: 6, name: "Juin" },
+  { num: 7, name: "Juillet" },
+  { num: 8, name: "Août" },
+];
+
+// stripTBC : enlève "(TBC)" pour le titre affiché. Conserve l'info via flag.
+function stripTBC(s) { return s.replace(/\s*\(TBC\)\s*$/i, "").trim(); }
+function hasTBC(s) { return /\(TBC\)/i.test(s); }
+
+// Mapping : clé = titre exact dans DATA (après cleanTitre, AVANT stripTBC).
+// Display = nom court ligne 1, sub = ligne 2 (souvent "chez X").
+const PRINT_LABELS = {
+  // Séjours avec sous-titre "chez X"
+  "Lacanau":                          { title: "Lacanau",        sub: "chez Esteban" },
+  "Bayonne (TBC)":                    { title: "Bayonne",        sub: "chez Jeanne" },
+  "Bayonne":                          { title: "Bayonne",        sub: "chez Jeanne" },
+  "La Palmyre chez Paul":             { title: "La Palmyre",     sub: "chez Paul" },
+  "La Palmyre":                       { title: "La Palmyre",     sub: "chez Paul" },
+  "Saint Jean du Bruel (TBC)":        { title: "St-Jean-Bruel",  sub: "chez Gustave" },
+  "Saint Jean du Bruel":              { title: "St-Jean-Bruel",  sub: "chez Gustave" },
+  "Saint Jean Bruel":                 { title: "St-Jean-Bruel",  sub: "chez Gustave" },
+  "Vacance Famille Villedieu":        { title: "Villedieu",      sub: "chez les Christophes" },
+  "Fléac":                            { title: "Fléac",          sub: "chez Mamoun" },
+  "Fleac":                            { title: "Fléac",          sub: "chez Mamoun" },
+  "Gonfaron":                         { title: "Gonfaron",       sub: "chez Papou & Mamou" },
+  "Megève":                           { title: "Megève",         sub: "chez Luce" },
+  "Megeve":                           { title: "Megève",         sub: "chez Luce" },
+  "La Plagne":                        { title: "La Plagne",      sub: "colo avec Luce" },
+  // Séjours avec sous-titre lieu
+  "Chantier Jeune Sainte Marguerite": { title: "Chantier",       sub: "Île Ste-Marguerite" },
+  "Les Roches Summer Camp":           { title: "Les Roches",     sub: "Marbella" },
+  "Mariage Amaury & Julie":           { title: "Mariage A&J",    sub: "Tendu (Indre)" },
+  "Mariage Amaury":                   { title: "Mariage A&J",    sub: "Tendu (Indre)" },
+  "Dublin World Dance Cup Final":     { title: "Dublin",         sub: "World Dance Cup" },
+  "Lyon (TBC)":                       { title: "Lyon",           sub: "" },
+  "Lyon":                             { title: "Lyon",           sub: "" },
+  "Boulot Geneva":                    { title: "Geneva",         sub: "(boulot)" },
+};
+function lookupPrintLabel(titre) {
+  return PRINT_LABELS[titre] || { title: titre, sub: "" };
+}
+
+// Groupe géo/thématique pour color-coding. Affichage "famille ensemble" devient
+// visuellement uniforme (bande de couleur sur la ligne).
+const PRINT_GROUPS = {
+  // Atlantique / Sud-Ouest (bleu)
+  "Lacanau":                          "atlantique",
+  "Bayonne":                          "atlantique",
+  "Bayonne (TBC)":                    "atlantique",
+  "La Palmyre chez Paul":             "atlantique",
+  "La Palmyre":                       "atlantique",
+  "Fléac":                            "atlantique",
+  "Fleac":                            "atlantique",
+  // Sud / Méditerranée (orange)
+  "Gonfaron":                         "med",
+  "Chantier Jeune Sainte Marguerite": "med",
+  "Vacance Famille Villedieu":        "med",
+  "Saint Jean du Bruel":              "med",
+  "Saint Jean du Bruel (TBC)":        "med",
+  "Saint Jean Bruel":                 "med",
+  // Montagne (vert)
+  "Megève":                           "montagne",
+  "Megeve":                           "montagne",
+  "La Plagne":                        "montagne",
+  // Étranger (violet)
+  "Les Roches Summer Camp":           "etranger",
+  "Dublin World Dance Cup Final":     "etranger",
+  "Boulot Geneva":                    "etranger",
+  // Événements ponctuels / Autres (gris)
+  "Mariage Amaury & Julie":           "evenement",
+  "Mariage Amaury":                   "evenement",
+  "Lyon (TBC)":                       "evenement",
+  "Lyon":                             "evenement",
+};
+function getActivityGroup(titre) {
+  return PRINT_GROUPS[titre] || "evenement";
+}
+const PRINT_GROUP_LABELS = {
+  atlantique: "Atlantique / Sud-Ouest",
+  med:        "Sud / Méditerranée",
+  montagne:   "Montagne",
+  etranger:   "Étranger",
+  evenement:  "Événements ponctuels",
+};
+
+function getIataFromInfo(info) {
+  const oc = info.origine ? (info.origine.match(/\(([A-Z]{3})\)/) || [])[1] : "";
+  const dc = info.destination ? (info.destination.match(/\(([A-Z]{3})\)/) || [])[1] : "";
+  return { oc: oc || "", dc: dc || "" };
+}
+
+// Construit la route de trajet pour le print : compact, lisible par grands-parents.
+// Pour multi-leg (ex. "Flight Dubai-Nice-Gonfaron"), montre origine (IATA si dispo)
+// → destination FINALE (ville texte) car c'est là qu'ils viennent nous chercher.
+function getPrintTrajetRoute(act, info) {
+  const ttype = trajetType(act, info);
+  const emoji = ttype === "vol" ? "✈" : ttype === "train" ? "🚆" : "🚗";
+  const stripped = act.replace(/^(Flight|Vol|Fly|Train|TGV|TER|Trajet)\s+/i, "");
+  const parts = stripped.split("-").map(s => s.trim()).filter(Boolean);
+  const { oc, dc } = getIataFromInfo(info);
+  if (parts.length === 2 && oc && dc) return `${emoji} ${oc}→${dc}`;
+  if (parts.length >= 2) {
+    const first = oc || parts[0];
+    const last = parts[parts.length - 1];
+    return `${emoji} ${first}→${last}`;
+  }
+  return `${emoji} ${stripped}`;
+}
+
+// Format heures : "08:00 → 14:30" si les deux dispo (idéal pour grands-parents
+// venant chercher à l'aéroport), sinon dégradé propre.
+function fmtTrajetTimes(info) {
+  if (info.heureDepart && info.heureArrivee) return `${info.heureDepart} → ${info.heureArrivee}`;
+  if (info.heureArrivee) return `arrivée ${info.heureArrivee}`;
+  if (info.heureDepart) return `départ ${info.heureDepart}`;
+  return "";
+}
+
+function buildPrintCell(iso, userId) {
+  const colIdx = USER_COL_IDX[userId];
+  const mmdd = iso.slice(5);
+  const row = DATA.d.find(r => r[0] === mmdd);
+  if (!row) return el("td", { class: "p-cell p-empty" }, el("div", { class: "p-cell-inner" }));
+  const act = row[colIdx];
+  if (!act) return el("td", { class: "p-cell p-empty" }, el("div", { class: "p-cell-inner" }));
+
+  if (isTrajet(act)) {
+    const note = (DATA.c || {})[`${iso}|${userId}`] || "";
+    const info = parseTrajetNote(note);
+    const route = getPrintTrajetRoute(act, info);
+    const times = fmtTrajetTimes(info);
+    return el("td", { class: "p-cell p-trajet" },
+      el("div", { class: "p-cell-inner" },
+        el("div", { class: "p-trajet-route" }, route),
+        el("div", { class: "p-trajet-time" }, times || " ")
+      )
+    );
+  }
+
+  if (isRoutine(act)) {
+    return el("td", { class: "p-cell p-routine" },
+      el("div", { class: "p-cell-inner" },
+        el("div", null, "🏠 Dubai")
+      )
+    );
+  }
+
+  // Séjour
+  const tentatif = isTentatif(act) || hasTBC(act);
+  const clean = stripTBC(cleanTitre(act));
+  const label = lookupPrintLabel(clean);
+  const group = getActivityGroup(clean);
+  const isGonfaron = (clean === "Gonfaron");
+  const cellClass = `p-cell p-sejour g-${group}`
+    + (tentatif ? " is-tentatif" : "")
+    + (isGonfaron ? " is-gonfaron" : "");
+  return el("td", { class: cellClass },
+    el("div", { class: "p-cell-inner" },
+      el("div", { class: "p-sejour-title" }, label.title + (tentatif ? " ?" : "")),
+      el("div", { class: "p-sejour-sub" }, label.sub || " ")
+    )
+  );
+}
+
+function renderPrintMonthPage(month, isLast) {
+  const page = el("section", { class: "print-page" });
+
+  // Header
+  const header = el("header", { class: "p-header" });
+  header.appendChild(el("div", { class: "p-eyebrow" }, "Famille Lecointre · Été 2026"));
+  header.appendChild(el("h1", { class: "p-title" }, `${month.name} 2026`));
+  page.appendChild(header);
+
+  // Table
+  const table = el("table", { class: "p-table" });
+  const thead = el("thead");
+  const headRow = el("tr");
+  headRow.appendChild(el("th", { class: "p-th p-th-date" }, "Date"));
+  for (const u of DATA.users) {
+    const avatarNode = u.photo
+      ? el("img", { class: "p-avatar", src: u.photo, alt: u.nom })
+      : el("div", { class: `p-avatar-fallback r-${u.ramp}` }, u.initials || u.nom[0]);
+    headRow.appendChild(el("th", { class: "p-th p-th-user" },
+      avatarNode,
+      el("div", { class: "p-th-name" }, u.nom)
+    ));
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = el("tbody");
+  const dataStart = DATA.meta.dateStart;
+  const dataEnd = DATA.meta.dateEnd;
+  const lastDay = new Date(2026, month.num, 0).getDate();
+
+  for (let day = 1; day <= lastDay; day++) {
+    const iso = `2026-${String(month.num).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    if (iso < dataStart || iso > dataEnd) continue;
+    const dow = new Date(2026, month.num - 1, day).getDay();
+    const isWeekend = (dow === 0 || dow === 6);
+    const tr = el("tr", { class: "p-row" + (isWeekend ? " is-weekend" : "") });
+    tr.appendChild(el("td", { class: "p-cell p-date-cell" },
+      el("span", { class: "p-dow" }, DOW_ABBR_FR[dow]),
+      el("span", { class: "p-day" }, String(day))
+    ));
+    for (const u of DATA.users) tr.appendChild(buildPrintCell(iso, u.id));
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  page.appendChild(table);
+
+  // Footer : légende couleurs + URL
+  const groupSwatch = (groupKey, label) => el("span", { class: "p-legend-item" },
+    el("span", { class: `p-legend-sw g-${groupKey}` }),
+    " " + label
+  );
+  const footer = el("footer", { class: "p-footer" },
+    el("div", { class: "p-footer-legend" },
+      groupSwatch("atlantique", "Atlantique"),
+      groupSwatch("med",        "Sud/Méd."),
+      groupSwatch("montagne",   "Montagne"),
+      groupSwatch("etranger",   "Étranger"),
+      groupSwatch("evenement",  "Événement"),
+      el("span", { class: "p-legend-item" }, "🏠 ", "Dubai"),
+      el("span", { class: "p-legend-item" }, "✈🚆🚗 ", "trajet"),
+      el("span", { class: "p-legend-item" },
+        el("span", { class: "p-legend-sw is-tentatif-sw" }),
+        " à confirmer"
+      )
+    ),
+    el("div", { class: "p-footer-url-line" },
+      "Version complète en ligne · ",
+      el("span", { class: "p-footer-url" }, "lecointre-summer-2026.netlify.app")
+    )
+  );
+  page.appendChild(footer);
+
+  if (isLast) page.style.pageBreakAfter = "auto";
+  return page;
+}
+
+function renderPrint() {
+  document.body.classList.remove("edit-mode");
+  document.body.classList.add("print-mode");
+  const app = document.getElementById("app");
+  app.innerHTML = "";
+
+  const toolbar = el("div", { class: "print-toolbar" },
+    el("a", {
+      class: "back-btn", href: "?",
+      onClick: (e) => { e.preventDefault(); navTo({}); }
+    }, iconSpan("back"), "Retour"),
+    el("div", { class: "print-toolbar-title" }, "Calendrier imprimable"),
+    el("button", {
+      class: "print-go-btn",
+      type: "button",
+      onClick: () => window.print()
+    }, iconSpan("printer"), "Imprimer")
+  );
+  app.appendChild(toolbar);
+
+  app.appendChild(el("div", { class: "print-hint" },
+    "Sur iPhone : tape ", el("strong", null, "Imprimer"), " ci-dessus, puis dans l'écran d'aperçu pince avec deux doigts sur la première page pour ", el("strong", null, "Enregistrer en PDF"), ". Tu peux ensuite l'envoyer aux grands-parents par AirDrop ou Mail."
+  ));
+
+  PRINT_MONTHS.forEach((m, i) => {
+    app.appendChild(renderPrintMonthPage(m, i === PRINT_MONTHS.length - 1));
+  });
+
+  // No FAB in print
+  document.querySelectorAll(".search-fab").forEach(e => e.remove());
+  window.scrollTo(0, 0);
 }
 
 function renderProgramme(userId) {
