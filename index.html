@@ -1109,15 +1109,37 @@ body.print-mode .app { max-width: none; }
 @media print {
   body.print-mode { background: white; }
   .print-toolbar, .print-hint, .search-fab { display: none !important; }
-  .print-page {
-    margin: 0; box-shadow: none;
-    width: auto; min-height: auto;
-    padding: 8mm 8mm 6mm;
-  }
   @page {
     size: A4 portrait;
-    margin: 8mm;
+    margin: 6mm;
   }
+  html, body { margin: 0 !important; padding: 0 !important; }
+  .print-page {
+    margin: 0;
+    box-shadow: none;
+    width: auto;
+    min-height: auto;
+    padding: 3mm 6mm 2mm;
+    overflow: hidden;
+    page-break-after: always;
+    break-after: page;
+  }
+  .print-page:last-of-type {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  /* Juillet = 31 jours : doit absolument tenir. Réduit la hauteur ligne
+     et le header pour print, garde la lisibilité écran intacte. */
+  .p-header { margin-bottom: 2mm; }
+  .p-eyebrow { font-size: 9pt; }
+  .p-title { font-size: 20pt; margin-top: 0; }
+  .p-row, .p-row > .p-cell { height: 7.1mm; }
+  .p-th { padding: 2pt 1pt; }
+  .p-avatar, .p-avatar-fallback { width: 18pt; height: 18pt; }
+  .p-th-name { font-size: 8pt; }
+  .p-footer { margin-top: 1.5mm; font-size: 7pt; }
+  .p-footer-url-line { margin-top: 0.8mm; font-size: 7pt; }
+  .p-footer-legend { gap: 8pt; font-size: 6.6pt; }
 }
 </style>
 </head>
@@ -1974,7 +1996,7 @@ function renderPrintMonthPage(month, isLast) {
   );
   const footer = el("footer", { class: "p-footer" },
     el("div", { class: "p-footer-legend" },
-      groupSwatch("atlantique", "Atlantique"),
+      groupSwatch("atlantique", "Sud Ouest"),
       groupSwatch("med",        "Sud/Méd."),
       groupSwatch("montagne",   "Montagne"),
       groupSwatch("etranger",   "Étranger"),
