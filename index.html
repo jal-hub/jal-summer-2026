@@ -877,6 +877,31 @@ body.edit-mode .app { max-width: 100%; }
   text-align: center;
   box-sizing: border-box;
 }
+
+/* Mobile : pilules plus compactes pour laisser de l'air entre elles.
+   Toutes les pilules forcées à 60px → uniformes, JAL/Carole pas plus
+   petits que les autres. */
+@media (max-width: 480px) {
+  .today-widget {
+    margin: 0 12px 16px;
+    padding: 12px 10px 14px;
+  }
+  .today-pill {
+    min-width: 60px;
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  .today-status {
+    font-size: 10.5px;
+  }
+  .today-status-sub {
+    font-size: 9.5px;
+  }
+  .today-cell {
+    padding: 4px 1px;
+    gap: 5px;
+  }
+}
 .today-status {
   width: 100%;
   text-align: center;
@@ -1934,18 +1959,26 @@ function getUserTodayStatus(userId, isoToday) {
   if (isTrajet(act)) {
     const note = (DATA.c || {})[`${isoToday}|${userId}`] || "";
     const info = parseTrajetNote(note);
-    const route = getPrintTrajetRoute(act, info);
-    const time = info.heureDepart || "";
-    return { kind: "trajet", label: route, sub: time };
+    // Destination finale (dernier segment du titre) — ce que les grands-parents
+    // veulent savoir (où aller chercher).
+    const stripped = act.replace(/^(Flight|Vol|Fly|Train|TGV|TER|Trajet)\s+/i, "");
+    const parts = stripped.split("-").map(s => s.trim()).filter(Boolean);
+    const dest = parts[parts.length - 1] || "";
+    const time = info.heureArrivee || info.heureDepart || "";
+    const sub = `→ ${dest}` + (time ? ` · ${time}` : "");
+    return { kind: "trajet", label: "En voyage", sub };
   }
   if (isRoutine(act)) {
     return { kind: "routine", label: "À Dubai" };
   }
-  // Séjour
+  // Séjour : "À <lieu>" pour les lieux, juste le nom pour les événements
+  // (À Mariage / À Chantier sonnent bizarres en français).
   const tentatif = isTentatif(act) || hasTBC(act);
   const clean = stripTBC(cleanTitre(act));
   const meta = lookupPrintLabel(clean);
-  return { kind: "sejour", label: meta.title, sub: meta.sub || "", tentatif };
+  const NO_A_PREFIX = new Set(["Chantier", "Mariage A&J"]);
+  const label = NO_A_PREFIX.has(meta.title) ? meta.title : `À ${meta.title}`;
+  return { kind: "sejour", label, sub: meta.sub || "", tentatif };
 }
 
 const DAYS_LONG_FR = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
