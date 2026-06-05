@@ -1109,20 +1109,33 @@ body.print-mode .app { max-width: none; }
 @media print {
   body.print-mode { background: white; }
   .print-toolbar, .print-hint, .search-fab { display: none !important; }
+  /* @page margin: 0 — la .print-page possède 100% de la page A4 et gère
+     elle-même ses propres padding. Évite les conflits @page vs Safari iOS. */
   @page {
     size: A4 portrait;
-    margin: 6mm;
+    margin: 0;
   }
-  html, body { margin: 0 !important; padding: 0 !important; }
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+  /* Verrouille chaque page à EXACTEMENT 210×297mm (A4 portrait) avec
+     box-sizing border-box. iOS Safari respecte ce dimensionnement et
+     met UNE .print-page par feuille physique. */
   .print-page {
+    width: 210mm;
+    height: 297mm;
+    max-height: 297mm;
+    padding: 6mm 7mm 4mm;
+    box-sizing: border-box;
     margin: 0;
     box-shadow: none;
-    width: auto;
-    min-height: auto;
-    padding: 3mm 6mm 2mm;
     overflow: hidden;
     page-break-after: always;
+    page-break-inside: avoid;
     break-after: page;
+    break-inside: avoid;
   }
   .print-page:last-of-type {
     page-break-after: auto;
