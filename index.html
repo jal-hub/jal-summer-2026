@@ -847,7 +847,8 @@ body.edit-mode .app { max-width: 100%; }
 }
 .today-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: space-evenly;
+  align-items: flex-start;
   gap: 4px;
 }
 .today-cell {
@@ -865,18 +866,16 @@ body.edit-mode .app { max-width: 100%; }
 }
 .today-cell:active { background: var(--separator); }
 .today-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 5px 10px;
+  display: inline-block;
+  min-width: 76px;
+  padding: 5px 12px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: -0.1px;
   white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: center;
+  box-sizing: border-box;
 }
 .today-status {
   width: 100%;
