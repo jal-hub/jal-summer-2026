@@ -239,8 +239,9 @@ body {
   color: white;
 }
 .btn-track {
-  background: var(--separator);
-  color: var(--text);
+  /* Jaune FR24 (le "24" dans flightradar24) — #FECC07 */
+  background: #FECC07;
+  color: #1a1a1a;
 }
 .btn-action:active { opacity: 0.7; }
 
@@ -2946,6 +2947,29 @@ function buildTrajetIcs(item, userId) {
   return icsFoldLines(lines).join("\r\n") + "\r\n";
 }
 
+// FlightRadar24 attend un numéro de vol sans leading zeros entre l'airline code
+// et le n° de vol. Split airline (IATA 2 chars : 2 lettres OU 1 lettre + 1 digit)
+// puis strip leading zeros.
+// Exemples :
+//   EK089 → ek89 (Emirates)
+//   EK090 → ek90
+//   AF0040 → af40 (Air France)
+//   FR1234 → fr1234 (Ryanair, pas de leading zero)
+//   EI234 → ei234 (Aer Lingus)
+//   V70123 → v7123 (Volotea, code airline avec digit)
+//   B6089 → b689 (JetBlue, idem)
+function normalizeFr24Number(vol) {
+  if (!vol) return "";
+  const compact = String(vol).replace(/\s+/g, "").toUpperCase();
+  // Tente d'abord les patterns IATA standards : 2 lettres OU 1 lettre + 1 chiffre
+  let m = compact.match(/^([A-Z]{2}|[A-Z]\d)0*(\d+)$/);
+  if (m) return (m[1] + m[2]).toLowerCase();
+  // Fallback : tout préfixe non-numérique puis leading zeros puis chiffres
+  m = compact.match(/^(\D+)0*(\d+)$/);
+  if (m) return (m[1] + m[2]).toLowerCase();
+  return compact.toLowerCase();
+}
+
 function addTrajetToCalendar(item, userId) {
   const ics = buildTrajetIcs(item, userId);
   const fnameBase = (item.obj.vol || item.obj.titre || "trajet").replace(/[^A-Za-z0-9]+/g, "_");
@@ -3022,8 +3046,9 @@ function buildExpand(container, item, userId) {
 
     // FlightRadar24 : uniquement si type vol ET numéro de vol connu.
     // FR24 = meilleur UX grand public (radar live, position sur carte, mobile-first).
+    // /!\ FR24 attend le numéro SANS leading zeros : EK089 → ek89, EK090 → ek90.
     if (o.type === "vol" && o.vol) {
-      const fnum = o.vol.replace(/\s+/g, "").toLowerCase();
+      const fnum = normalizeFr24Number(o.vol);
       const fr24Url = `https://www.flightradar24.com/data/flights/${encodeURIComponent(fnum)}`;
       const trackBtn = el("a", {
         class: "btn-action btn-track",
