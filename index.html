@@ -1467,9 +1467,12 @@ body.print-mode {
     background: white !important;
   }
   /* En landscape, A4 height (210mm) < Letter height (216mm).
-     Donc en forçant .print-page à EXACTEMENT 297×210mm + overflow hidden,
-     ça rentre parfaitement sur A4 ET laisse 6mm de marge sur Letter.
-     iOS Safari ne peut plus splitter une .print-page sur plusieurs feuilles. */
+     .print-page forcé à EXACTEMENT 297×210mm + overflow hidden :
+     - Rentre parfaitement sur A4 (1:1)
+     - Laisse 6mm libre sur Letter (en haut)
+     - Le contenu suivant démarre AUTOMATIQUEMENT sur la feuille suivante
+       sans qu'on ait besoin de forcer un page-break (qui créait des pages
+       blanches en double sur iOS Safari). */
   .print-page {
     margin: 0;
     box-shadow: none;
@@ -1480,14 +1483,6 @@ body.print-mode {
     box-sizing: border-box;
     overflow: hidden;
     display: block;
-    page-break-after: always;
-    page-break-inside: avoid;
-    break-after: page;
-    break-inside: avoid;
-  }
-  .print-page:last-of-type {
-    page-break-after: auto;
-    break-after: auto;
   }
   .p-table { flex: none; }
   /* Layout landscape compact pour résister aux marges ajoutées par Chrome
