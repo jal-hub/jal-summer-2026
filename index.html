@@ -1362,28 +1362,43 @@ body.print-mode {
 .p-sejour.g-etranger   { background: #e2ddf6; color: #2f2868; }
 .p-sejour.g-evenement  { background: #e6e6ea; color: #424247; }
 
-/* Gonfaron : même orange que le groupe Méditerranée, mais avec des hachures
-   diagonales +45° (sens INVERSE de "tentatif" qui est en -45°), pour le
-   distinguer de Villedieu sans changer son appartenance au groupe. */
+/* Gonfaron : hachures diagonales +45° en couleur SOLIDE (pas d'alpha).
+   iOS Safari ignore l'opacité dans repeating-linear-gradient → rendait
+   les cellules noires à l'impression. Solution : utiliser une couleur
+   solide intermédiaire entre le fond orange et un brun plus foncé. */
 .p-sejour.is-gonfaron {
   background-image: repeating-linear-gradient(
     45deg,
-    rgba(125, 62, 8, 0.13) 0,
-    rgba(125, 62, 8, 0.13) 1.2pt,
+    #f3cc8c 0,
+    #f3cc8c 1.2pt,
     transparent 1.2pt,
     transparent 4.5pt
   );
 }
 
+/* Tentatif : hachures -45° en couleur solide légère (au lieu de rgba alpha
+   que iOS ignore et rend en noir solide). */
 .p-sejour.is-tentatif {
   background-image: repeating-linear-gradient(
     -45deg,
-    rgba(0,0,0,0.04) 0,
-    rgba(0,0,0,0.04) 2pt,
+    rgba(0,0,0,0.08) 0,
+    rgba(0,0,0,0.08) 2pt,
     transparent 2pt,
     transparent 5pt
   );
   border: 0.5pt dashed #888;
+}
+/* Override en print : iOS ignore alpha → utiliser couleurs solides */
+@media print {
+  .p-sejour.is-tentatif {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      #ddd2b0 0,
+      #ddd2b0 1.5pt,
+      transparent 1.5pt,
+      transparent 4.5pt
+    );
+  }
 }
 
 .p-trajet {
@@ -1466,23 +1481,27 @@ body.print-mode {
     padding: 0 !important;
     background: white !important;
   }
-  /* En landscape, A4 height (210mm) < Letter height (216mm).
-     .print-page forcé à EXACTEMENT 297×210mm + overflow hidden :
-     - Rentre parfaitement sur A4 (1:1)
-     - Laisse 6mm libre sur Letter (en haut)
-     - Le contenu suivant démarre AUTOMATIQUEMENT sur la feuille suivante
-       sans qu'on ait besoin de forcer un page-break (qui créait des pages
-       blanches en double sur iOS Safari). */
+  /* iOS Safari : ne PAS forcer height fixe ni page-break-after.
+     Stratégie : laisser le contenu prendre sa taille naturelle (~178mm),
+     puis page-break-BEFORE sur les .print-page #2 et #3 pour forcer
+     une nouvelle feuille. Le dernier n'a pas de break-after, donc pas
+     de blank en queue. */
   .print-page {
     margin: 0;
     box-shadow: none;
-    width: 297mm;
-    height: 210mm;
-    max-height: 210mm;
+    width: auto;
+    height: auto;
+    min-height: 0;
+    max-height: none;
     padding: 5mm 12mm 4mm;
     box-sizing: border-box;
     overflow: hidden;
     display: block;
+  }
+  /* Page break entre les mois, PAS après */
+  .print-page + .print-page {
+    page-break-before: always;
+    break-before: page;
   }
   .p-table { flex: none; }
   /* Layout landscape compact pour résister aux marges ajoutées par Chrome
