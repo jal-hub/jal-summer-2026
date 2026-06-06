@@ -257,40 +257,7 @@ body {
 }
 .doc-pill .icon { width: 14px; height: 14px; color: var(--text-sec); }
 
-/* PDF Overlay viewer (utilisé partout, fix PWA iOS) */
-.doc-overlay {
-  position: fixed; inset: 0;
-  background: var(--bg);
-  z-index: 400;
-  display: flex; flex-direction: column;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-.doc-overlay.show { opacity: 1; }
-.doc-overlay-bar {
-  display: flex; align-items: center; gap: 8px;
-  padding: env(safe-area-inset-top, 12px) 16px 10px;
-  padding-top: max(env(safe-area-inset-top, 12px), 12px);
-  background: var(--bg);
-  border-bottom: 0.5px solid var(--separator);
-}
-.doc-overlay-close, .doc-overlay-extern {
-  border: none; background: transparent; color: var(--accent);
-  font-size: 15px; padding: 8px 10px; cursor: pointer;
-  font-family: inherit; text-decoration: none;
-  font-weight: 500;
-  -webkit-appearance: none;
-}
-.doc-overlay-label {
-  flex: 1; text-align: center; font-weight: 500;
-  font-size: 14px; color: var(--text);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  padding: 0 6px;
-}
-.doc-overlay iframe, .doc-overlay embed, .doc-overlay object {
-  flex: 1; border: none; width: 100%;
-  background: white;
-}
+/* PDF Overlay viewer supprimé : remplacé par <a target="_blank"> avec jsdelivr */
 
 .contact-row { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); }
 .contact-row .icon { width: 13px; height: 13px; color: var(--text-sec); }
@@ -2132,6 +2099,9 @@ function render() {
   document.body.classList.remove("print-mode", "map-mode");
   const appEl = document.getElementById("app");
   if (appEl) appEl.classList.remove("is-print", "is-map");
+  // Cleanup défensif : si l'utilisateur navigue (back button) avec un overlay/sheet
+  // ouvert, retirer ces zombies du DOM avant de re-render.
+  document.querySelectorAll(".sheet-backdrop, .day-sheet, .modal-backdrop, .modal, .search-overlay").forEach(e => e.remove());
   const r = getRoute();
   if (r.edit) renderEdit();
   else if (r.print) renderPrint();
@@ -2447,8 +2417,7 @@ function addSearchFab() {
   document.querySelectorAll(".search-fab").forEach(e => e.remove());
   const r = getRoute();
   if (r.print || r.edit || r.map) return;  // no FAB in print/edit/map
-  const variant = r.user ? "is-programme" : "is-home";
-  const fab = el("button", { class: "search-fab " + variant, type: "button", title: "Rechercher", onClick: openSearch }, iconSpan("search"));
+  const fab = el("button", { class: "search-fab", type: "button", title: "Rechercher", onClick: openSearch }, iconSpan("search"));
   document.body.appendChild(fab);
 }
 
@@ -2533,13 +2502,7 @@ const PRINT_GROUPS = {
 function getActivityGroup(titre) {
   return PRINT_GROUPS[titre] || "evenement";
 }
-const PRINT_GROUP_LABELS = {
-  atlantique: "Atlantique / Sud-Ouest",
-  med:        "Sud / Méditerranée",
-  montagne:   "Montagne",
-  etranger:   "Étranger",
-  evenement:  "Événements ponctuels",
-};
+// PRINT_GROUP_LABELS supprimé : libellés en dur dans la légende footer du print.
 
 function getIataFromInfo(info) {
   const oc = info.origine ? (info.origine.match(/\(([A-Z]{3})\)/) || [])[1] : "";
@@ -3300,12 +3263,7 @@ async function sharePdf(url, label) {
   catch (e) { showToast("Partage indisponible", true); }
 }
 
-function blockField(label, value) {
-  const b = el("div");
-  b.appendChild(el("div", { class: "field-label" }, label));
-  b.appendChild(el("div", { class: "field-value" }, value));
-  return b;
-}
+// blockField (non linkified) supprimé : remplacé par blockFieldLinkified partout.
 // Variante linkifiée : transforme http(s)://… et www.… en liens cliquables
 function linkifyHtml(text) {
   if (!text) return "";
@@ -3377,40 +3335,8 @@ function renderMonth(year, month, dataStart, dataEnd) {
 // - Bouton "Fermer" → revenir au programme (close overlay)
 // - Bouton "Partager" → utilise navigator.share (iOS share sheet : ouvrir Safari, Files, Mail…)
 // - Rendu : <embed> (meilleur que iframe sur iOS pour les PDFs)
-function openPdfOverlay(url, label) {
-  const overlay = el("div", { class: "doc-overlay" });
-  const bar = el("div", { class: "doc-overlay-bar" });
-  const close = () => {
-    overlay.style.opacity = "0";
-    setTimeout(() => overlay.remove(), 220);
-  };
-  bar.appendChild(el("button", { class: "doc-overlay-close", type: "button", onClick: close }, "← Fermer"));
-  bar.appendChild(el("div", { class: "doc-overlay-label" }, label || "Document"));
-
-  // Action "Partager" : utilise navigator.share pour ouvrir l'iOS share sheet
-  // (Safari, Files, Mail, etc.). Fallback : target=_blank.
-  const shareBtn = el("button", { class: "doc-overlay-extern", type: "button" }, "Partager");
-  shareBtn.addEventListener("click", async () => {
-    const absUrl = url.startsWith("http") ? url : new URL(url, location.href).href;
-    if (navigator.share) {
-      try { await navigator.share({ url: absUrl, title: label || "PDF" }); return; }
-      catch (e) { if (e.name === "AbortError") return; }
-    }
-    // Fallback : nouvel onglet
-    window.open(absUrl, "_blank", "noopener,noreferrer");
-  });
-  bar.appendChild(shareBtn);
-  overlay.appendChild(bar);
-
-  // PDF rendu via <embed> (plus stable que iframe sur iOS pour PDFs)
-  const viewer = el("embed", {
-    src: url, type: "application/pdf", title: label || "PDF"
-  });
-  overlay.appendChild(viewer);
-
-  document.body.appendChild(overlay);
-  requestAnimationFrame(() => overlay.classList.add("show"));
-}
+// openPdfOverlay supprimé : les pills PDF utilisent maintenant <a target="_blank">
+// (cross-origin jsdelivr force iOS PWA à ouvrir Safari natif avec viewer iOS).
 
 function openDaySheet(iso) {
   const md = iso.slice(5);
@@ -3485,15 +3411,7 @@ async function idbPut(key, v) {
     tx.onerror = () => rej(tx.error);
   });
 }
-async function idbDel(key) {
-  const db = await idbOpen();
-  return new Promise((res, rej) => {
-    const tx = db.transaction(IDB_STORE, "readwrite");
-    tx.objectStore(IDB_STORE).delete(key);
-    tx.oncomplete = () => res();
-    tx.onerror = () => rej(tx.error);
-  });
-}
+// idbDel supprimé : non utilisé. Si besoin futur, le ré-ajouter avec un commentaire.
 async function ensurePermission(handle) {
   if (!handle) return false;
   try {
@@ -3535,12 +3453,16 @@ async function saveDashboardHtml() {
     if (!currentHtml || currentHtml.length < 1000) {
       throw new Error(`Doc trop petit (${currentHtml.length} octets)`);
     }
+    // IMPORTANT : passer une FONCTION (pas une string) au replace pour éviter que les
+     // patterns "$&", "$1", "$$" présents dans dataJson (notes utilisateur) soient
+     // interprétés comme backrefs. Sinon corruption silencieuse de l'HTML sauvegardé.
+    const replacement = () => `let DATA = ${dataJson};`;
     let newHtml = currentHtml.replace(
       /let DATA\s*=\s*\{[\s\S]*?\};(?=\s*\n\s*const TODAY)/m,
-      `let DATA = ${dataJson};`
+      replacement
     );
     if (newHtml === currentHtml) {
-      newHtml = currentHtml.replace(/let DATA\s*=\s*\{[\s\S]*?\};/m, `let DATA = ${dataJson};`);
+      newHtml = currentHtml.replace(/let DATA\s*=\s*\{[\s\S]*?\};/m, replacement);
       if (newHtml === currentHtml) throw new Error("Pattern 'let DATA = {...};' introuvable");
     }
     if (newHtml.length < 1000) throw new Error(`HTML résultant trop petit (${newHtml.length})`);
@@ -3654,7 +3576,7 @@ function renderEditGrid() {
       const colIdx = USER_COL_IDX[u.id];
       const act = row[colIdx] || "";
       const noteKey = `2026-${md}|${u.id}`;
-      const hasNote = !!(DATA.c[noteKey]);
+      const hasNote = !!((DATA.c || {})[noteKey]);
       let cls = "cell";
       if (!act) cls += " is-empty";
       else if (isRoutine(act)) cls += " is-routine";
@@ -4124,6 +4046,7 @@ function buildXlsxBlob() {
   const COL_LETTER = { anatole:"C", auguste:"D", sixtine:"E", carole:"F", jal:"G" };
   for (const key of Object.keys(DATA.c || {})) {
     const [date, p] = key.split("|");
+    if (!COL_LETTER[p]) continue;  // user inconnu (renommé) → skip plutôt que cellule fantôme "undefined3"
     const md = date.slice(5);
     const idx = DATA.d.findIndex(r => r[0] === md);
     if (idx < 0) continue;
