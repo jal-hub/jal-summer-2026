@@ -1362,43 +1362,30 @@ body.print-mode {
 .p-sejour.g-etranger   { background: #e2ddf6; color: #2f2868; }
 .p-sejour.g-evenement  { background: #e6e6ea; color: #424247; }
 
-/* Gonfaron : hachures diagonales +45° en couleur SOLIDE (pas d'alpha).
-   iOS Safari ignore l'opacité dans repeating-linear-gradient → rendait
-   les cellules noires à l'impression. Solution : utiliser une couleur
-   solide intermédiaire entre le fond orange et un brun plus foncé. */
+/* Gonfaron : hachures diagonales +45° en couleur SOLIDE pâle.
+   iOS Safari ignore l'opacité rgba dans repeating-linear-gradient → rendait
+   les cellules noires. Solution permanente : pas d'alpha, partout. */
 .p-sejour.is-gonfaron {
   background-image: repeating-linear-gradient(
     45deg,
-    #f3cc8c 0,
-    #f3cc8c 1.2pt,
+    #e8b87a 0,
+    #e8b87a 1.2pt,
     transparent 1.2pt,
     transparent 4.5pt
   );
 }
 
-/* Tentatif : hachures -45° en couleur solide légère (au lieu de rgba alpha
-   que iOS ignore et rend en noir solide). */
+/* Tentatif : hachures -45° en couleur solide pâle (cohérent toutes plateformes,
+   pas d'override @media print qui peut être ignoré par iOS). */
 .p-sejour.is-tentatif {
   background-image: repeating-linear-gradient(
     -45deg,
-    rgba(0,0,0,0.08) 0,
-    rgba(0,0,0,0.08) 2pt,
-    transparent 2pt,
-    transparent 5pt
+    #c8c0aa 0,
+    #c8c0aa 1.5pt,
+    transparent 1.5pt,
+    transparent 4.5pt
   );
   border: 0.5pt dashed #888;
-}
-/* Override en print : iOS ignore alpha → utiliser couleurs solides */
-@media print {
-  .p-sejour.is-tentatif {
-    background-image: repeating-linear-gradient(
-      -45deg,
-      #ddd2b0 0,
-      #ddd2b0 1.5pt,
-      transparent 1.5pt,
-      transparent 4.5pt
-    );
-  }
 }
 
 .p-trajet {
@@ -2710,6 +2697,106 @@ function renderPrintMonthPage(month, isLast) {
   return page;
 }
 
+// === PDF GENERATION (jsPDF + html2canvas) =======================================
+// Génère un PDF A4 landscape 3 pages identique sur tous les devices, contournant
+// totalement le print engine iOS Safari (qui ignore @page size, rgba alpha, etc.).
+// Pipeline : html2canvas capture chaque .print-page → canvas PNG → embed dans jsPDF.
+function loadPdfLibs() {
+  return new Promise((resolve, reject) => {
+    if (window.jspdf && window.html2canvas) return resolve();
+    const loaded = { js: !!window.jspdf, h2c: !!window.html2canvas };
+    const check = () => { if (loaded.js && loaded.h2c) resolve(); };
+    const load = (key, src) => {
+      if (loaded[key]) return;
+      // Vérifie si script déjà en cours
+      const existing = document.querySelector(`script[data-pdflib="${key}"]`);
+      if (existing) {
+        existing.addEventListener("load", () => { loaded[key] = true; check(); });
+        existing.addEventListener("error", reject);
+        return;
+      }
+      const s = document.createElement("script");
+      s.src = src;
+      s.setAttribute("data-pdflib", key);
+      s.onload = () => { loaded[key] = true; check(); };
+      s.onerror = reject;
+      document.head.appendChild(s);
+    };
+    load("js",  "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js");
+    load("h2c", "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js");
+  });
+}
+
+async function downloadCalendarPdf(btn) {
+  const originalText = btn.dataset.originalText || btn.textContent;
+  btn.dataset.originalText = originalText;
+  const setLabel = (txt) => {
+    btn.innerHTML = "";
+    btn.appendChild(iconSpan("printer"));
+    btn.appendChild(document.createTextNode(txt));
+  };
+
+  try {
+    setLabel("Chargement…");
+    btn.disabled = true;
+    await loadPdfLibs();
+
+    setLabel("Génération…");
+    const pages = document.querySelectorAll(".print-page");
+    if (pages.length === 0) throw new Error("Aucune page");
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+    for (let i = 0; i < pages.length; i++) {
+      setLabel(`Page ${i + 1}/${pages.length}…`);
+      // Force le rendu sur fond blanc, à 2× pour la qualité
+      const canvas = await window.html2canvas(pages[i], {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        logging: false,
+        windowWidth: Math.max(window.innerWidth, 1200),
+      });
+      const imgData = canvas.toDataURL("image/jpeg", 0.92);
+      if (i > 0) pdf.addPage("a4", "landscape");
+      // A4 landscape full bleed : 297 × 210 mm
+      pdf.addImage(imgData, "JPEG", 0, 0, 297, 210, undefined, "FAST");
+    }
+
+    const filename = "Famille-Lecointre-Été-2026.pdf";
+    const blob = pdf.output("blob");
+    const file = new File([blob], filename, { type: "application/pdf" });
+
+    // iOS/mobile : share sheet
+    if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+      try {
+        await navigator.share({ files: [file], title: "Été 2026 — Famille Lecointre" });
+        setLabel("PDF");
+        return;
+      } catch (e) {
+        if (e.name === "AbortError") { setLabel("PDF"); return; }
+        // fallback below
+      }
+    }
+    // Desktop / fallback : download
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    showToast("PDF téléchargé");
+  } catch (e) {
+    console.error("PDF error", e);
+    showToast("Erreur génération PDF", true);
+  } finally {
+    btn.disabled = false;
+    setLabel(originalText);
+  }
+}
+
 function renderPrint() {
   document.body.classList.remove("edit-mode");
   document.body.classList.add("print-mode");
@@ -2717,22 +2804,24 @@ function renderPrint() {
   app.classList.add("is-print");  // classe directe sur .app pour bypass sélecteur ancêtre
   app.innerHTML = "";
 
+  const pdfBtn = el("button", {
+    class: "print-go-btn",
+    type: "button",
+  }, iconSpan("printer"), "PDF");
+  pdfBtn.addEventListener("click", () => downloadCalendarPdf(pdfBtn));
+
   const toolbar = el("div", { class: "print-toolbar" },
     el("a", {
       class: "back-btn", href: "?",
       onClick: (e) => { e.preventDefault(); navTo({}); }
     }, iconSpan("back"), "Retour"),
-    el("div", { class: "print-toolbar-title" }, "Calendrier imprimable"),
-    el("button", {
-      class: "print-go-btn",
-      type: "button",
-      onClick: () => window.print()
-    }, iconSpan("printer"), "Imprimer")
+    el("div", { class: "print-toolbar-title" }, "Calendrier"),
+    pdfBtn
   );
   app.appendChild(toolbar);
 
   app.appendChild(el("div", { class: "print-hint" },
-    "Sur iPhone : tape ", el("strong", null, "Imprimer"), " ci-dessus, puis dans l'écran d'aperçu pince avec deux doigts sur la première page pour ", el("strong", null, "Enregistrer en PDF"), ". Tu peux ensuite l'envoyer aux grands-parents par AirDrop ou Mail."
+    "Tape ", el("strong", null, "PDF"), " ci-dessus pour générer le calendrier 3 pages A4 landscape. Sur iPhone : la fenêtre de partage s'ouvre — AirDrop, Mail, ou Save to Files. Identique sur desktop et mobile."
   ));
 
   PRINT_MONTHS.forEach((m, i) => {
