@@ -2946,32 +2946,30 @@ function buildTrajetIcs(item, userId) {
   return icsFoldLines(lines).join("\r\n") + "\r\n";
 }
 
-async function addTrajetToCalendar(item, userId) {
+function addTrajetToCalendar(item, userId) {
   const ics = buildTrajetIcs(item, userId);
   const fnameBase = (item.obj.vol || item.obj.titre || "trajet").replace(/[^A-Za-z0-9]+/g, "_");
   const filename = `${item.date}_${fnameBase}.ics`;
   const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
-  const file = new File([blob], filename, { type: "text/calendar" });
-
-  // iOS Safari : Web Share avec File → ouvre la sheet "Ajouter au calendrier"
-  if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
-    try {
-      await navigator.share({ files: [file], title: "Ajouter au calendrier" });
-      return;
-    } catch (e) {
-      if (e.name === "AbortError") return;  // user cancelled
-      // fallback below
-    }
-  }
-  // Fallback desktop : download direct → user double-clique le .ics → Calendar
   const url = URL.createObjectURL(blob);
+
+  // iOS Safari : navigation directe vers blob text/calendar → Safari détecte
+  // le mime type et propose nativement "Ajouter à Calendar" en bannière haute.
+  // BEAUCOUP plus propre que Web Share qui ne propose pas Calendar.
+  // Desktop : navigation déclenche le téléchargement → ouverture par Calendar.
   const a = document.createElement("a");
-  a.href = url; a.download = filename;
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noopener";
+  // download attribute déclencherait un download au lieu d'une ouverture sur desktop ;
+  // sur iOS Safari c'est ignoré et le mime text/calendar prend la main de toute façon.
+  a.download = filename;
+  a.style.display = "none";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
-  showToast("Calendrier téléchargé — ouvre-le pour l'ajouter");
+
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
 function buildExpand(container, item, userId) {
@@ -3022,13 +3020,14 @@ function buildExpand(container, item, userId) {
     });
     actionsRow.appendChild(calBtn);
 
-    // FlightAware : uniquement si type vol ET numéro de vol connu
+    // FlightRadar24 : uniquement si type vol ET numéro de vol connu.
+    // FR24 = meilleur UX grand public (radar live, position sur carte, mobile-first).
     if (o.type === "vol" && o.vol) {
-      const fanum = o.vol.replace(/\s+/g, "").toUpperCase();
-      const faUrl = `https://www.flightaware.com/live/flight/${encodeURIComponent(fanum)}`;
+      const fnum = o.vol.replace(/\s+/g, "").toLowerCase();
+      const fr24Url = `https://www.flightradar24.com/data/flights/${encodeURIComponent(fnum)}`;
       const trackBtn = el("a", {
         class: "btn-action btn-track",
-        href: faUrl, target: "_blank", rel: "noopener",
+        href: fr24Url, target: "_blank", rel: "noopener",
       }, iconSpan("radar"), el("span", null, "Suivre le vol"));
       trackBtn.addEventListener("click", (e) => { e.stopPropagation(); });
       actionsRow.appendChild(trackBtn);
