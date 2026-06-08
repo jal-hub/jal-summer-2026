@@ -1537,21 +1537,30 @@ function iconSpan(name, extraClass) {
   return el("span", { class: "icon" + (extraClass ? " " + extraClass : ""), html: ICONS[name] || "" });
 }
 
-// Résout une URL de doc en URL servable (jsdelivr CDN pour les paths relatifs),
-// avec cache-busting ?v=<hash> pour les PDFs trackés dans DATA.doc_hashes.
-// Permet d'invalider le cache jsdelivr (TTL ~12h) ET le cache navigateur dès qu'un
-// PDF change : nouveau hash = nouvelle URL = fresh fetch garanti.
+// Résout une URL de doc en URL servable.
+//
+// Stratégie : servir depuis NETLIFY same-origin (https://lecointre-summer-2026.netlify.app/docs/X.pdf)
+// plutôt que jsdelivr CDN. Pourquoi :
+//   - jsdelivr cache les fichiers et ignore les query strings ?v= pour son cache CDN
+//   - L'API purge.jsdelivr.net dit "finished" mais sert encore l'ancien (propagation aléatoire)
+//   - Netlify a Cache-Control: no-cache sur /docs/* (configuré dans netlify.toml)
+//   - Le ?v=<hash> invalide alors uniquement le cache NAVIGATEUR, qui le respecte
+//   - 0 propagation delay : push GitHub → Netlify déploie → PDF servi
+//
+// L'URL doit être ABSOLUE (Netlify) pour que les share texts (WhatsApp/Mail) marchent
+// même quand on ouvre l'app en local (file://).
+const APP_PUBLIC_BASE = "https://lecointre-summer-2026.netlify.app";
 function resolveDocUrl(rawUrl) {
   if (!rawUrl) return "";
   // URL absolue → laissée telle quelle
   if (/^https?:\/\//.test(rawUrl)) return rawUrl;
-  // Path relatif docs/ ou avatars/ → jsdelivr + cache-bust
+  // Path relatif docs/ ou avatars/ → Netlify + cache-bust
   if (rawUrl.startsWith("docs/") || rawUrl.startsWith("avatars/")) {
-    const cdn = `https://cdn.jsdelivr.net/gh/jal-hub/jal-summer-2026@main/${encodeURI(rawUrl)}`;
+    const base = `${APP_PUBLIC_BASE}/${encodeURI(rawUrl)}`;
     // Lookup hash : retire prefix "docs/" ou "avatars/" pour matcher la clé
     const relPath = rawUrl.replace(/^(docs|avatars)\//, "");
     const hash = (DATA.doc_hashes || {})[rawUrl] || (DATA.doc_hashes || {})[relPath];
-    return hash ? `${cdn}?v=${hash}` : cdn;
+    return hash ? `${base}?v=${hash}` : base;
   }
   return rawUrl;
 }
