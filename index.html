@@ -1596,26 +1596,33 @@ function iconSpan(name, extraClass) {
   return el("span", { class: "icon" + (extraClass ? " " + extraClass : ""), html: ICONS[name] || "" });
 }
 
-// Résout une URL de doc en URL servable depuis Netlify (same-origin).
+// Résout une URL de doc en URL servable.
 //
-// Pourquoi Netlify et pas un CDN cross-origin :
-//   - jsdelivr : cache CDN ignore les query strings, propagation aléatoire après PDF update
-//   - statically.io : ne sert pas le contenu pour ce repo (réponses vides)
-//   - Netlify : Cache-Control no-cache déjà configuré, ?v=<hash> invalide le cache
-//     navigateur de façon fiable
+// PDFs (docs/*) → GitHub Pages (jal-hub.github.io), domaine DIFFÉRENT de l'app
+// Netlify. Cross-origin → iOS PWA standalone détecte que ce n'est pas notre
+// domaine et OUVRE le PDF dans Safari natif (viewer iOS complet : pagination,
+// zoom, "Done" pour revenir). C'est l'UX optimale.
+//   - GitHub Pages = CDN Fastly géré par GitHub, fiable
+//   - Propagation ~1-2 min après push (vs jsdelivr 12h, statically inexistant)
+//   - ?v=<hash> = cache-busting navigateur en plus
 //
-// Inconvénient : URLs same-origin → iOS PWA standalone ouvre le PDF dans son
-// webview sans bouton retour. Compensé par l'overlay maison openPdfOverlay
-// (avec PDF.js qui rend les pages en canvas, bouton retour, share).
+// Avatars (avatars/*) → Netlify same-origin (images inline via <img>, pas besoin
+// de cross-origin).
 const APP_PUBLIC_BASE = "https://lecointre-summer-2026.netlify.app";
+const DOCS_PAGES_BASE = "https://jal-hub.github.io/jal-summer-2026";
 function resolveDocUrl(rawUrl) {
   if (!rawUrl) return "";
   if (/^https?:\/\//.test(rawUrl)) return rawUrl;
-  if (rawUrl.startsWith("docs/") || rawUrl.startsWith("avatars/")) {
-    const base = `${APP_PUBLIC_BASE}/${encodeURI(rawUrl)}`;
-    const relPath = rawUrl.replace(/^(docs|avatars)\//, "");
+
+  if (rawUrl.startsWith("docs/")) {
+    // GitHub Pages cross-origin → iOS PWA escape vers Safari natif
+    const base = `${DOCS_PAGES_BASE}/${encodeURI(rawUrl)}`;
+    const relPath = rawUrl.replace(/^docs\//, "");
     const hash = (DATA.doc_hashes || {})[rawUrl] || (DATA.doc_hashes || {})[relPath];
     return hash ? `${base}?v=${hash}` : base;
+  }
+  if (rawUrl.startsWith("avatars/")) {
+    return `${APP_PUBLIC_BASE}/${encodeURI(rawUrl)}`;
   }
   return rawUrl;
 }
@@ -3233,14 +3240,9 @@ function buildExpand(container, item, userId) {
         class: "doc-pill",
         href: url, target: "_blank", rel: "noopener noreferrer",
       }, iconSpan("doc"), el("span", null, label));
-      // iOS PWA standalone : target="_blank" same-origin bloque sans back button.
-      // Override → overlay maison avec PDF.js. Desktop/Safari mobile : intact.
-      if (isStandalonePwa()) {
-        pill.addEventListener("click", (e) => {
-          e.preventDefault();
-          openPdfOverlay(url, label);
-        });
-      }
+      // PDFs servis cross-origin (GitHub Pages) → iOS PWA escape vers Safari natif,
+      // desktop ouvre en nouvel onglet. Pas besoin de l'overlay PDF.js maison.
+      // (openPdfOverlay reste défini en fallback si on doit revenir au same-origin.)
       const pdfShareBtn = el("button", { class: "doc-share", type: "button", title: "Partager ce PDF" }, iconSpan("share"));
       pdfShareBtn.addEventListener("click", (e) => {
         e.preventDefault(); e.stopPropagation();
