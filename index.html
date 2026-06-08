@@ -301,7 +301,7 @@ body {
 .pdf-pages-wrap {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;  /* permet scroll horizontal après zoom-in */
   background: #525659;
   padding: 12px;
   display: flex;
@@ -309,6 +309,7 @@ body {
   align-items: center;
   gap: 12px;
   -webkit-overflow-scrolling: touch;
+  touch-action: pinch-zoom pan-x pan-y;  /* autorise pinch + pan iOS */
 }
 .pdf-page-canvas {
   background: white;
@@ -317,6 +318,7 @@ body {
   max-width: 900px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.35);
   display: block;
+  touch-action: pinch-zoom pan-x pan-y;
 }
 .pdf-loading {
   color: white;
@@ -3428,27 +3430,30 @@ function isStandalonePwa() {
 }
 
 // Charge PDF.js (lib + worker) depuis jsdelivr CDN, à la demande.
-// ~700KB total lazy-loaded la première fois qu'un PDF est ouvert.
-const PDFJS_VERSION = "4.0.379";
+// Version 3.x avec bundle UMD (script normal, pas ES module) pour compatibilité
+// large : iOS Safari anciens, navigateurs Android divers, etc.
+// ~600KB total lazy-loaded la première fois qu'un PDF est ouvert.
+const PDFJS_VERSION = "3.11.174";
 let pdfjsLoadPromise = null;
 function loadPdfJs() {
   if (window.pdfjsLib) return Promise.resolve();
   if (pdfjsLoadPromise) return pdfjsLoadPromise;
   pdfjsLoadPromise = new Promise((resolve, reject) => {
-    const cb = `__pdfjs_loaded_${Date.now()}`;
-    window[cb] = () => { delete window[cb]; resolve(); };
-    const moduleSrc =
-      `import * as p from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.min.mjs';\n` +
-      `window.pdfjsLib = p;\n` +
-      `p.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.mjs';\n` +
-      `window.${cb}();`;
     const s = document.createElement('script');
-    s.type = 'module';
-    s.textContent = moduleSrc;
-    s.onerror = () => reject(new Error("PDF.js load failed"));
+    s.src = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.min.js`;
+    s.onload = () => {
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+          `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.js`;
+        resolve();
+      } else {
+        reject(new Error("PDF.js load failed (lib non exposée)"));
+      }
+    };
+    s.onerror = () => reject(new Error("PDF.js script échec réseau"));
     document.head.appendChild(s);
     setTimeout(() => {
-      if (!window.pdfjsLib) reject(new Error("PDF.js load timeout"));
+      if (!window.pdfjsLib) reject(new Error("PDF.js load timeout (30s)"));
     }, 30000);
   });
   return pdfjsLoadPromise;
@@ -3481,10 +3486,23 @@ async function renderPdfPages(url, container, statusEl) {
   }
 }
 
+// Permet le pinch-zoom uniquement quand l'overlay PDF est ouvert. Le viewport
+// meta de l'app a maximum-scale=1 pour empêcher le zoom des cards/avatars qui
+// casserait la mise en page. Pour les PDFs on a besoin du zoom natif iOS.
+const VIEWPORT_BASE   = "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover";
+const VIEWPORT_ZOOMABLE = "width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover";
+function setViewportZoomable(zoomable) {
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (meta) meta.setAttribute('content', zoomable ? VIEWPORT_ZOOMABLE : VIEWPORT_BASE);
+}
+
 // Overlay full-screen avec PDF + bouton Retour + bouton Partager (iOS PWA seul).
 function openPdfOverlay(url, label) {
+  // Active pinch-zoom le temps que l'overlay est ouvert
+  setViewportZoomable(true);
   const overlay = el("div", { class: "doc-overlay" });
   const close = () => {
+    setViewportZoomable(false);  // Restaure le viewport non-zoomable de l'app
     overlay.classList.remove("show");
     setTimeout(() => overlay.remove(), 220);
   };
