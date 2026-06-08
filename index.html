@@ -257,7 +257,45 @@ body {
 }
 .doc-pill .icon { width: 14px; height: 14px; color: var(--text-sec); }
 
-/* PDF Overlay viewer supprimé : remplacé par <a target="_blank"> avec jsdelivr */
+/* PDF Overlay viewer — activé uniquement en mode PWA standalone iOS où
+   target="_blank" sur des URLs same-origin (Netlify) bloque sans back button.
+   Sur desktop / Safari mobile / browser tab : on garde target="_blank" normal. */
+.doc-overlay {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 1000;
+  display: flex; flex-direction: column;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.doc-overlay.show { opacity: 1; }
+.doc-overlay-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: max(env(safe-area-inset-top, 12px), 12px) 16px 10px;
+  background: var(--bg);
+  border-bottom: 0.5px solid var(--separator);
+}
+.doc-overlay-close, .doc-overlay-extern {
+  border: none; background: transparent; color: var(--accent);
+  font-size: 16px; padding: 8px 10px; cursor: pointer;
+  font-family: inherit; text-decoration: none;
+  font-weight: 500;
+  -webkit-appearance: none;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.doc-overlay-close .icon, .doc-overlay-extern .icon {
+  width: 18px; height: 18px;
+}
+.doc-overlay-label {
+  flex: 1; text-align: center; font-weight: 500;
+  font-size: 14px; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 0 6px;
+}
+.doc-overlay iframe, .doc-overlay embed, .doc-overlay object {
+  flex: 1; border: none; width: 100%;
+  background: white;
+}
 
 .contact-row { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); }
 .contact-row .icon { width: 13px; height: 13px; color: var(--text-sec); }
@@ -3178,6 +3216,15 @@ function buildExpand(container, item, userId) {
         class: "doc-pill",
         href: url, target: "_blank", rel: "noopener noreferrer",
       }, iconSpan("doc"), el("span", null, label));
+      // iOS PWA standalone : target="_blank" same-origin → bloque sans back button.
+      // On intercepte et on ouvre une overlay maison. Sur desktop/Safari mobile :
+      // comportement normal (nouvel onglet/fenêtre).
+      if (isStandalonePwa()) {
+        pill.addEventListener("click", (e) => {
+          e.preventDefault();
+          openPdfOverlay(url, label);
+        });
+      }
       const pdfShareBtn = el("button", { class: "doc-share", type: "button", title: "Partager ce PDF" }, iconSpan("share"));
       pdfShareBtn.addEventListener("click", (e) => {
         e.preventDefault(); e.stopPropagation();
@@ -3344,8 +3391,52 @@ function renderMonth(year, month, dataStart, dataEnd) {
 // - Bouton "Fermer" → revenir au programme (close overlay)
 // - Bouton "Partager" → utilise navigator.share (iOS share sheet : ouvrir Safari, Files, Mail…)
 // - Rendu : <embed> (meilleur que iframe sur iOS pour les PDFs)
-// openPdfOverlay supprimé : les pills PDF utilisent maintenant <a target="_blank">
-// (cross-origin jsdelivr force iOS PWA à ouvrir Safari natif avec viewer iOS).
+// Détecte le mode PWA standalone iOS. En standalone, target="_blank" sur des URLs
+// same-origin (Netlify) ouvre le PDF inline dans le webview sans bouton retour.
+// On bascule alors sur une overlay maison avec back/share.
+function isStandalonePwa() {
+  return window.navigator.standalone === true
+      || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+}
+
+// Overlay full-screen avec PDF + bouton Retour + bouton Partager (iOS PWA seul).
+function openPdfOverlay(url, label) {
+  const overlay = el("div", { class: "doc-overlay" });
+  const close = () => {
+    overlay.classList.remove("show");
+    setTimeout(() => overlay.remove(), 220);
+  };
+  // ESC pour fermer
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", onKey);
+  overlay.addEventListener("remove", () => document.removeEventListener("keydown", onKey));
+
+  const bar = el("div", { class: "doc-overlay-bar" });
+  bar.appendChild(el("button", {
+    class: "doc-overlay-close", type: "button", onClick: close,
+  }, iconSpan("back"), "Retour"));
+  bar.appendChild(el("div", { class: "doc-overlay-label" }, label || "Document"));
+
+  // Bouton Partager : ouvre la share sheet iOS avec l'URL du PDF
+  const shareBtn = el("button", { class: "doc-overlay-extern", type: "button" }, iconSpan("share"));
+  shareBtn.addEventListener("click", async () => {
+    if (navigator.share) {
+      try { await navigator.share({ url, title: label || "PDF" }); }
+      catch (e) { if (e.name !== "AbortError") window.open(url, "_blank", "noopener"); }
+    } else {
+      window.open(url, "_blank", "noopener");
+    }
+  });
+  bar.appendChild(shareBtn);
+  overlay.appendChild(bar);
+
+  // PDF rendu via <iframe> (compatible iOS PWA et desktop)
+  const viewer = el("iframe", { src: url, title: label || "PDF" });
+  overlay.appendChild(viewer);
+
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add("show"));
+}
 
 function openDaySheet(iso) {
   const md = iso.slice(5);
