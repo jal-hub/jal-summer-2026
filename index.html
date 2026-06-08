@@ -257,75 +257,8 @@ body {
 }
 .doc-pill .icon { width: 14px; height: 14px; color: var(--text-sec); }
 
-/* PDF Overlay viewer — activé uniquement en mode PWA standalone iOS où
-   target="_blank" sur des URLs same-origin (Netlify) bloque sans back button.
-   Sur desktop / Safari mobile / browser tab : on garde target="_blank" normal. */
-.doc-overlay {
-  position: fixed; inset: 0;
-  background: var(--bg);
-  z-index: 1000;
-  display: flex; flex-direction: column;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-.doc-overlay.show { opacity: 1; }
-.doc-overlay-bar {
-  display: flex; align-items: center; gap: 8px;
-  padding: max(env(safe-area-inset-top, 12px), 12px) 16px 10px;
-  background: var(--bg);
-  border-bottom: 0.5px solid var(--separator);
-}
-.doc-overlay-close, .doc-overlay-extern {
-  border: none; background: transparent; color: var(--accent);
-  font-size: 16px; padding: 8px 10px; cursor: pointer;
-  font-family: inherit; text-decoration: none;
-  font-weight: 500;
-  -webkit-appearance: none;
-  display: inline-flex; align-items: center; gap: 4px;
-}
-.doc-overlay-close .icon, .doc-overlay-extern .icon {
-  width: 18px; height: 18px;
-}
-.doc-overlay-label {
-  flex: 1; text-align: center; font-weight: 500;
-  font-size: 14px; color: var(--text);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  padding: 0 6px;
-}
-.doc-overlay iframe, .doc-overlay embed, .doc-overlay object {
-  flex: 1; border: none; width: 100%;
-  background: white;
-  min-height: 0;
-}
-/* PDF.js viewer : pages rendues en canvas, scroll vertical, pinch-zoom natif */
-.pdf-pages-wrap {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: auto;  /* permet scroll horizontal après zoom-in */
-  background: #525659;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pinch-zoom pan-x pan-y;  /* autorise pinch + pan iOS */
-}
-.pdf-page-canvas {
-  background: white;
-  width: 100%;
-  height: auto;
-  max-width: 900px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-  display: block;
-  touch-action: pinch-zoom pan-x pan-y;
-}
-.pdf-loading {
-  color: white;
-  text-align: center;
-  padding: 40px 20px;
-  font-size: 14px;
-}
+/* PDF overlay maison + viewer PDF.js supprimés : avec cross-origin (statically.io)
+   iOS PWA standalone ouvre les PDFs dans Safari natif → UX complète sans hack. */
 
 .contact-row { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); }
 .contact-row .icon { width: 13px; height: 13px; color: var(--text-sec); }
@@ -1607,28 +1540,34 @@ function iconSpan(name, extraClass) {
 
 // Résout une URL de doc en URL servable.
 //
-// Stratégie : servir depuis NETLIFY same-origin (https://lecointre-summer-2026.netlify.app/docs/X.pdf)
-// plutôt que jsdelivr CDN. Pourquoi :
-//   - jsdelivr cache les fichiers et ignore les query strings ?v= pour son cache CDN
-//   - L'API purge.jsdelivr.net dit "finished" mais sert encore l'ancien (propagation aléatoire)
-//   - Netlify a Cache-Control: no-cache sur /docs/* (configuré dans netlify.toml)
-//   - Le ?v=<hash> invalide alors uniquement le cache NAVIGATEUR, qui le respecte
-//   - 0 propagation delay : push GitHub → Netlify déploie → PDF servi
+// PDFs (docs/*) → statically.io CDN cross-origin.
+//   - Cross-origin = iOS PWA standalone détecte ce n'est pas notre domaine
+//     et OUVRE le PDF dans Safari natif (viewer iOS complet, pagination, zoom,
+//     bouton "Done" pour revenir)
+//   - Cache TTL ~5min (vs jsdelivr 12h), tolérable pour des PDFs qui changent
+//     rarement
+//   - ?v=<hash> = cache-busting navigateur en plus
 //
-// L'URL doit être ABSOLUE (Netlify) pour que les share texts (WhatsApp/Mail) marchent
-// même quand on ouvre l'app en local (file://).
+// Avatars (avatars/*) → Netlify same-origin (images simples, pas besoin de
+// cross-origin).
 const APP_PUBLIC_BASE = "https://lecointre-summer-2026.netlify.app";
+const DOCS_CDN_BASE   = "https://cdn.statically.io/gh/jal-hub/jal-summer-2026/main";
 function resolveDocUrl(rawUrl) {
   if (!rawUrl) return "";
   // URL absolue → laissée telle quelle
   if (/^https?:\/\//.test(rawUrl)) return rawUrl;
-  // Path relatif docs/ ou avatars/ → Netlify + cache-bust
-  if (rawUrl.startsWith("docs/") || rawUrl.startsWith("avatars/")) {
-    const base = `${APP_PUBLIC_BASE}/${encodeURI(rawUrl)}`;
-    // Lookup hash : retire prefix "docs/" ou "avatars/" pour matcher la clé
-    const relPath = rawUrl.replace(/^(docs|avatars)\//, "");
+
+  if (rawUrl.startsWith("docs/")) {
+    // CDN cross-origin pour échapper le PWA standalone iOS vers Safari natif
+    const base = `${DOCS_CDN_BASE}/${encodeURI(rawUrl)}`;
+    const relPath = rawUrl.replace(/^docs\//, "");
     const hash = (DATA.doc_hashes || {})[rawUrl] || (DATA.doc_hashes || {})[relPath];
     return hash ? `${base}?v=${hash}` : base;
+  }
+  if (rawUrl.startsWith("avatars/")) {
+    // Netlify same-origin pour les images (rendues inline via <img>, aucun besoin
+    // de cross-origin et évite une dépendance CDN supplémentaire)
+    return `${APP_PUBLIC_BASE}/${encodeURI(rawUrl)}`;
   }
   return rawUrl;
 }
@@ -3246,15 +3185,8 @@ function buildExpand(container, item, userId) {
         class: "doc-pill",
         href: url, target: "_blank", rel: "noopener noreferrer",
       }, iconSpan("doc"), el("span", null, label));
-      // iOS PWA standalone : target="_blank" same-origin → bloque sans back button.
-      // On intercepte et on ouvre une overlay maison. Sur desktop/Safari mobile :
-      // comportement normal (nouvel onglet/fenêtre).
-      if (isStandalonePwa()) {
-        pill.addEventListener("click", (e) => {
-          e.preventDefault();
-          openPdfOverlay(url, label);
-        });
-      }
+      // URL cross-origin (statically.io) → iOS PWA escape vers Safari natif,
+      // desktop ouvre en nouvel onglet, Android idem. Pas de hack nécessaire.
       const pdfShareBtn = el("button", { class: "doc-share", type: "button", title: "Partager ce PDF" }, iconSpan("share"));
       pdfShareBtn.addEventListener("click", (e) => {
         e.preventDefault(); e.stopPropagation();
@@ -3421,154 +3353,9 @@ function renderMonth(year, month, dataStart, dataEnd) {
 // - Bouton "Fermer" → revenir au programme (close overlay)
 // - Bouton "Partager" → utilise navigator.share (iOS share sheet : ouvrir Safari, Files, Mail…)
 // - Rendu : <embed> (meilleur que iframe sur iOS pour les PDFs)
-// Détecte le mode PWA standalone iOS. En standalone, target="_blank" sur des URLs
-// same-origin (Netlify) ouvre le PDF inline dans le webview sans bouton retour.
-// On bascule alors sur une overlay maison avec back/share.
-function isStandalonePwa() {
-  return window.navigator.standalone === true
-      || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-}
-
-// Charge PDF.js (lib + worker) depuis jsdelivr CDN, à la demande.
-// Version 3.x avec bundle UMD (script normal, pas ES module) pour compatibilité
-// large : iOS Safari anciens, navigateurs Android divers, etc.
-// ~600KB total lazy-loaded la première fois qu'un PDF est ouvert.
-const PDFJS_VERSION = "3.11.174";
-let pdfjsLoadPromise = null;
-function loadPdfJs() {
-  if (window.pdfjsLib) return Promise.resolve();
-  if (pdfjsLoadPromise) return pdfjsLoadPromise;
-  pdfjsLoadPromise = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.min.js`;
-    s.onload = () => {
-      if (window.pdfjsLib) {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-          `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.js`;
-        resolve();
-      } else {
-        reject(new Error("PDF.js load failed (lib non exposée)"));
-      }
-    };
-    s.onerror = () => reject(new Error("PDF.js script échec réseau"));
-    document.head.appendChild(s);
-    setTimeout(() => {
-      if (!window.pdfjsLib) reject(new Error("PDF.js load timeout (30s)"));
-    }, 30000);
-  });
-  return pdfjsLoadPromise;
-}
-
-// Rend toutes les pages d'un PDF dans le container (canvas par page, scrollable).
-async function renderPdfPages(url, container, statusEl) {
-  try {
-    await loadPdfJs();
-    statusEl.textContent = "Chargement…";
-    const pdf = await window.pdfjsLib.getDocument(url).promise;
-    statusEl.remove();
-    // Sur mobile, scale réduit pour économiser mémoire (Pinch pour zoomer en natif)
-    const dpr = window.devicePixelRatio || 1;
-    const baseScale = window.innerWidth < 600 ? 1.3 : 1.8;
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: baseScale * dpr });
-      const canvas = document.createElement('canvas');
-      canvas.className = 'pdf-page-canvas';
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const ctx = canvas.getContext('2d');
-      await page.render({ canvasContext: ctx, viewport }).promise;
-      container.appendChild(canvas);
-    }
-  } catch (e) {
-    console.error("PDF render failed:", e);
-    statusEl.innerHTML = `Erreur de chargement.<br><a href="${esc(url)}" target="_blank" style="color:#5ac8fa">Ouvrir directement</a>`;
-  }
-}
-
-// Permet le pinch-zoom uniquement quand l'overlay PDF est ouvert. Le viewport
-// meta de l'app a maximum-scale=1 pour empêcher le zoom des cards/avatars qui
-// casserait la mise en page. Pour les PDFs on a besoin du zoom natif iOS.
-const VIEWPORT_BASE   = "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover";
-const VIEWPORT_ZOOMABLE = "width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover";
-function setViewportZoomable(zoomable) {
-  const meta = document.querySelector('meta[name="viewport"]');
-  if (meta) meta.setAttribute('content', zoomable ? VIEWPORT_ZOOMABLE : VIEWPORT_BASE);
-}
-
-// Overlay full-screen avec PDF + bouton Retour + bouton Partager (iOS PWA seul).
-function openPdfOverlay(url, label) {
-  // Active pinch-zoom le temps que l'overlay est ouvert
-  setViewportZoomable(true);
-  const overlay = el("div", { class: "doc-overlay" });
-  const close = () => {
-    setViewportZoomable(false);  // Restaure le viewport non-zoomable de l'app
-    overlay.classList.remove("show");
-    setTimeout(() => overlay.remove(), 220);
-  };
-  // ESC pour fermer
-  const onKey = (e) => { if (e.key === "Escape") close(); };
-  document.addEventListener("keydown", onKey);
-  overlay.addEventListener("remove", () => document.removeEventListener("keydown", onKey));
-
-  const bar = el("div", { class: "doc-overlay-bar" });
-  bar.appendChild(el("button", {
-    class: "doc-overlay-close", type: "button", onClick: close,
-  }, iconSpan("back"), "Retour"));
-  bar.appendChild(el("div", { class: "doc-overlay-label" }, label || "Document"));
-
-  // Bouton Partager : fetch le PDF en blob et l'envoie comme FICHIER via la share
-  // sheet iOS (AirDrop / Mail / WhatsApp reçoivent le PDF directement, pas juste
-  // un lien). Fallback URL si la share API ne supporte pas les files.
-  const shareBtn = el("button", { class: "doc-overlay-extern", type: "button" }, iconSpan("share"));
-  shareBtn.addEventListener("click", async () => {
-    // Extrait le nom de fichier depuis l'URL (decode URI)
-    let filename = "document.pdf";
-    try {
-      const pathname = new URL(url, location.href).pathname;
-      const last = decodeURIComponent(pathname.split("/").pop() || "");
-      if (last && last.toLowerCase().endsWith(".pdf")) filename = last;
-    } catch (e) { /* ignore */ }
-    // Essai 1 : share du FICHIER (idéal)
-    try {
-      const resp = await fetch(url);
-      if (resp.ok) {
-        const blob = await resp.blob();
-        const file = new File([blob], filename, { type: "application/pdf" });
-        if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
-          try {
-            await navigator.share({ files: [file], title: label || "PDF" });
-            return;
-          } catch (e) {
-            if (e.name === "AbortError") return;
-          }
-        }
-      }
-    } catch (e) { /* fallback below */ }
-    // Essai 2 : share de l'URL (dégradé)
-    if (navigator.share) {
-      try {
-        await navigator.share({ url, title: label || "PDF" });
-        return;
-      } catch (e) { if (e.name === "AbortError") return; }
-    }
-    // Essai 3 : ouvre dans nouvel onglet
-    window.open(url, "_blank", "noopener");
-  });
-  bar.appendChild(shareBtn);
-  overlay.appendChild(bar);
-
-  // PDF rendu via PDF.js : chaque page → canvas. Marche identique sur iOS PWA,
-  // iOS Safari, desktop, Android. Pinch-to-zoom natif sur les canvas.
-  const wrap = el("div", { class: "pdf-pages-wrap" });
-  const status = el("div", { class: "pdf-loading" }, "Chargement…");
-  wrap.appendChild(status);
-  overlay.appendChild(wrap);
-  renderPdfPages(url, wrap, status);
-
-  document.body.appendChild(overlay);
-  requestAnimationFrame(() => overlay.classList.add("show"));
-}
+// openPdfOverlay / PDF.js / isStandalonePwa supprimés : avec statically.io
+// (cross-origin), iOS PWA ouvre les PDFs nativement dans Safari (UX complète).
+// Plus besoin de viewer maison ni de toggle viewport pinch-zoom.
 
 function openDaySheet(iso) {
   const md = iso.slice(5);
