@@ -2587,7 +2587,12 @@ function getGroupEmoji(titre) { return GROUP_EMOJI[getActivityGroup(titre)] || "
 function getSejourEmoji(titre) {
   const t = (titre || "").toLowerCase();
   if (t.startsWith("boulot")) return "💼";
-  if (t.startsWith("lyon")) return "🦁";  // jeu de mots Lyon → lion
+  if (t.startsWith("lyon")) return "🦁";          // jeu de mots Lyon → lion
+  if (t.includes("dublin")) return "🩰✨";        // finale coupe du monde de ballet (Sixtine danse)
+  if (t.includes("roches")) return "🛎️";          // Les Roches = école hôtelière (summer camp Anatole)
+  if (t.includes("fléac") || t.includes("fleac")) return "🏰";  // château familial
+  if (t.includes("mariage")) return "💒";          // Mariage Amaury & Julie
+  if (t.includes("chantier")) return "🔨";         // Chantier Jeune Sainte-Marguerite
   return getGroupEmoji(titre);
 }
 // Émoji d'un trajet selon le mode de transport
