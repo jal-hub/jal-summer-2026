@@ -7,13 +7,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Summer 26">
-<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#7ec8e3">
+<meta name="color-scheme" content="light">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=110da31b">
 <link rel="icon" href="apple-touch-icon.png?v=110da31b">
 <title>Summer 2026 — Famille Lecointre</title>
 <style>
+/* Mode CLAIR forcé partout (pas de dark mode — choix design estival). */
 :root {
+  color-scheme: light;
   --bg: #f2f2f7;
   --card: #ffffff;
   --card-border: rgba(60, 60, 67, 0.12);
@@ -26,22 +28,6 @@
   --separator: rgba(60, 60, 67, 0.18);
   --tentatif: #ff9500;
   --tentatif-bg: rgba(255, 149, 0, 0.10);
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #000000;
-    --card: #1c1c1e;
-    --card-border: rgba(255, 255, 255, 0.08);
-    --text: #ffffff;
-    --text-sec: #8e8e93;
-    --text-ter: #48484a;
-    --accent: #0a84ff;
-    --accent-bg: rgba(10, 132, 255, 0.18);
-    --accent-text: #5ac8fa;
-    --separator: rgba(84, 84, 88, 0.6);
-    --tentatif: #ff9f0a;
-    --tentatif-bg: rgba(255, 159, 10, 0.16);
-  }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -106,53 +92,57 @@ body {
 .r-coral  { background: #F0997B; color: #4A1B0C; }
 
 /* ============================================================
-   SUMMER THEME — appliqué uniquement sur la home (body.home-mode)
-   et uniquement en mode clair. Dark mode reste sobre.
+   SUMMER THEME — dégradé ciel→sable sur TOUTE l'app (mode clair forcé).
+   Les vues map/print/edit ont leur propre fond (override plus bas).
    ============================================================ */
-@media (prefers-color-scheme: light) {
-  body.home-mode {
-    background: linear-gradient(180deg,
-      #7ec8e3 0%,    /* ciel */
-      #a8dff0 16%,
-      #d4ecdc 42%,
-      #ffe8c4 70%,   /* sable clair */
-      #ffd9a0 100%   /* sable chaud */
-    );
-    background-attachment: fixed;
-  }
-  /* Titre + sous-titre teintés "mer/soleil" */
-  body.home-mode .home-subtitle { color: #1d6e8c; font-weight: 600; }
-  body.home-mode .home-title { color: #0a3a52; }
-  /* Avatars : contour blanc pour ressortir sur le dégradé */
-  body.home-mode .avatar-grid .avatar {
-    border: 3px solid rgba(255,255,255,0.92);
-    box-shadow: 0 2px 8px rgba(10,58,82,0.12);
-  }
-  body.home-mode .avatar-name { font-weight: 500; color: #0a3a52; }
-  /* Widget Aujourd'hui : verre dépoli + accent corail */
-  body.home-mode .today-widget {
-    background: rgba(255,255,255,0.82);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    border-color: rgba(255,255,255,0.7);
-  }
-  body.home-mode .today-eyebrow,
-  body.home-mode .cal-eyebrow { color: #d85a30; font-weight: 600; }
-  body.home-mode .today-date { color: #0a3a52; }
-  body.home-mode .today-countdown { background: #ffb347; color: #5a3500; }
-  /* Cartes calendrier + liens : verre dépoli léger */
-  body.home-mode .cal-month {
-    background: rgba(255,255,255,0.82);
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-    border-color: rgba(255,255,255,0.6);
-  }
-  body.home-mode .home-link {
-    background: rgba(255,255,255,0.85);
-    color: #0a3a52;
-    border-color: rgba(255,255,255,0.6);
-  }
+body {
+  background: linear-gradient(180deg,
+    #7ec8e3 0%,    /* ciel */
+    #a8dff0 14%,
+    #d4ecdc 40%,
+    #ffe8c4 70%,   /* sable clair */
+    #ffd9a0 100%   /* sable chaud */
+  ) no-repeat;
+  background-attachment: fixed;
+  background-color: #cfe9f2;  /* fallback couvrant tout le scroll */
 }
+.app { background: transparent; }
+
+/* Titre + sous-titre teintés "mer/soleil" */
+.home-subtitle { color: #1d6e8c; font-weight: 600; }
+.home-title { color: #0a3a52; }
+/* Avatars home : contour blanc pour ressortir sur le dégradé */
+.avatar-grid .avatar {
+  border: 3px solid rgba(255,255,255,0.92);
+  box-shadow: 0 2px 8px rgba(10,58,82,0.12);
+}
+.avatar-grid .avatar-name { font-weight: 500; color: #0a3a52; }
+/* Widget Aujourd'hui : verre dépoli + accent corail */
+.today-widget {
+  background: rgba(255,255,255,0.82);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-color: rgba(255,255,255,0.7);
+}
+.today-eyebrow, .cal-eyebrow { color: #d85a30; font-weight: 600; }
+.today-date { color: #0a3a52; }
+.today-countdown { background: #ffb347; color: #5a3500; }
+/* Cartes calendrier + liens : verre dépoli léger */
+.cal-month {
+  background: rgba(255,255,255,0.82);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-color: rgba(255,255,255,0.6);
+}
+.home-link {
+  background: rgba(255,255,255,0.85);
+  color: #0a3a52;
+  border-color: rgba(255,255,255,0.6);
+}
+/* Programme : eyebrow + titre teintés mer aussi (cohérence sur dégradé) */
+.prog-eyebrow { color: #d85a30; font-weight: 600; }
+.prog-title { color: #0a3a52; }
+/* (les cartes séjour/trajet reçoivent leur fond verre dépoli dans .card plus bas) */
 
 /* PROGRAMME header */
 .prog-header { padding: 12px 20px 8px; }
@@ -190,7 +180,9 @@ body {
 /* Cards */
 .cards { padding: 0 16px 32px; display: flex; flex-direction: column; gap: 8px; }
 .card {
-  background: var(--card);
+  background: rgba(255,255,255,0.86);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   border: 0.5px solid var(--card-border);
   border-radius: 16px;
   padding: 12px 14px;
@@ -684,9 +676,6 @@ body.edit-mode .app { max-width: 100%; }
 }
 .enrich-badge.done { background: rgba(45, 158, 117, 0.16); color: rgb(15, 110, 86); }
 .enrich-badge.todo { background: var(--separator); color: var(--text-sec); }
-@media (prefers-color-scheme: dark) {
-  .enrich-badge.done { background: rgba(45, 158, 117, 0.24); color: rgb(157, 226, 199); }
-}
 
 .modal.is-large { max-width: 540px; max-height: 85vh; overflow-y: auto; }
 .doc-pill-edit {
@@ -1145,9 +1134,6 @@ body.map-mode { background: var(--bg); overflow: hidden; }
   max-width: 92vw;
   box-shadow: 0 2px 8px rgba(0,0,0,0.12);
   font-size: 11px;
-}
-@media (prefers-color-scheme: dark) {
-  .map-legend { background: rgba(28,28,30,0.94); color: #fff; }
 }
 .map-legend-item {
   display: inline-flex;
@@ -2218,7 +2204,7 @@ function renderHome() {
 function getUserTodayStatus(userId, isoToday) {
   // Avant/après la saison : tout le monde est en routine "À Dubai"
   if (isoToday < DATA.meta.dateStart || isoToday > DATA.meta.dateEnd) {
-    return { kind: "routine", label: "À Dubai" };
+    return { kind: "routine", label: "🏠 À Dubai" };
   }
   const colIdx = USER_COL_IDX[userId];
   const mmdd = isoToday.slice(5);
@@ -2992,7 +2978,10 @@ function renderCard(item, userId, isPast) {
   card.dataset.start = item.date;
   card.dataset.end = item.dateEnd;
 
-  const titleEl = el("span", { class: "card-title" }, o.titre);
+  // Émoji du groupe en préfixe pour les séjours (cohérent avec la map).
+  const sejourEmoji = isSejour ? getGroupEmoji(o.titre) : "";
+  const titleText = sejourEmoji ? `${sejourEmoji} ${o.titre}` : o.titre;
+  const titleEl = el("span", { class: "card-title" }, titleText);
   if (isSejour && o.tentatif) titleEl.appendChild(el("span", { class: "tentatif-badge" }, "à confirmer"));
   const shareIconBtn = el("button", { class: "card-share-icon", type: "button", title: "Partager" }, iconSpan("share"));
   shareIconBtn.addEventListener("click", (e) => { e.stopPropagation(); shareItem(item, userId); });
