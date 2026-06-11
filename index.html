@@ -32,6 +32,13 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html { -webkit-text-size-adjust: 100%; }
+/* Twemoji : émojis rendus en SVG, alignés sur la ligne de texte */
+.twemoji {
+  height: 1em; width: 1em;
+  vertical-align: -0.125em;
+  margin: 0 0.04em;
+  display: inline-block;
+}
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
   background: var(--bg);
@@ -2172,8 +2179,8 @@ function renderHome() {
   document.body.classList.add("home-mode");  // active le thème estival (dégradé, accents)
   const app = document.getElementById("app"); app.innerHTML = "";
   const screen = el("div", { class: "screen" });
-  screen.appendChild(el("div", { class: "home-subtitle" }, "🏝️ " + DATA.meta.family));
-  screen.appendChild(el("h1", { class: "home-title", style: { marginBottom: "32px" } }, DATA.meta.title + " ☀️"));
+  screen.appendChild(el("div", { class: "home-subtitle", html: twemojify("🏝️ " + DATA.meta.family) }));
+  screen.appendChild(el("h1", { class: "home-title", style: { marginBottom: "32px" }, html: twemojify(DATA.meta.title + " ☀️") }));
 
   const grid = el("div", { class: "avatar-grid" });
   const rowParents = el("div", { class: "avatar-row" });
@@ -2289,7 +2296,7 @@ function renderTodayWidget() {
     });
     cell.appendChild(el("div", { class: `today-pill r-${u.ramp}` }, u.nom));
     const status = el("div", { class: `today-status today-st-${st.kind}` + (st.tentatif ? " is-tentatif" : "") },
-      el("div", { class: "today-status-label" }, st.label),
+      el("div", { class: "today-status-label", html: twemojify(st.label) }),
       st.sub ? el("div", { class: "today-status-sub" }, st.sub) : null
     );
     cell.appendChild(status);
@@ -2598,6 +2605,31 @@ function getSejourEmoji(titre) {
 // Émoji d'un trajet selon le mode de transport
 const TRAJET_EMOJI = { vol: "✈️", train: "🚆", voiture: "🚗" };
 function getTrajetEmoji(type) { return TRAJET_EMOJI[type] || "🚗"; }
+
+// === TWEMOJI : rend les émojis en SVG (look uniforme tous appareils) ============
+// On sert depuis jsdelivr (fork maintenu jdecked/twemoji). On remplace UNIQUEMENT
+// notre set connu d'émojis (robuste, pas de regex émoji générale fragile).
+const TWEMOJI_BASE = "https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/svg/";
+const APP_EMOJIS = ["🩰","✨","🛎️","🏰","🦁","💼","💒","🔨","🏖️","☀️","⛰️","✈️","🚆","🚗","🎉","🏝️","🏠"];
+function _emojiToTwemojiCp(emoji) {
+  return Array.from(emoji)
+    .map(c => c.codePointAt(0).toString(16))
+    .filter(c => c !== "fe0f")   // twemoji strippe le variation selector
+    .join("-");
+}
+// Regex construite depuis le set (plus longs d'abord pour matcher les séquences)
+const _EMOJI_RE = new RegExp(
+  "(" + APP_EMOJIS.slice().sort((a,b) => b.length - a.length)
+        .map(e => e.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")",
+  "g"
+);
+// Transforme un texte en HTML : texte échappé + émojis remplacés par <img> twemoji.
+function twemojify(text) {
+  return esc(text).replace(_EMOJI_RE, (m) => {
+    const url = TWEMOJI_BASE + _emojiToTwemojiCp(m) + ".svg";
+    return `<img class="twemoji" src="${url}" alt="${m}" draggable="false">`;
+  });
+}
 
 function getIataFromInfo(info) {
   const oc = info.origine ? (info.origine.match(/\(([A-Z]{3})\)/) || [])[1] : "";
@@ -3000,7 +3032,7 @@ function renderBanner(label, item) {
   const nextTitle = nextEmoji ? `${o.titre} ${nextEmoji}` : o.titre;
   return el("div", { class: "next-card" },
     el("div", { class: "next-eyebrow" }, label),
-    el("div", { class: "next-title" }, iconSpan(ic), el("span", null, nextTitle)),
+    el("div", { class: "next-title" }, iconSpan(ic), el("span", { html: twemojify(nextTitle) })),
     el("div", { class: "next-meta" }, meta),
   );
 }
@@ -3018,7 +3050,7 @@ function renderCard(item, userId, isPast) {
   // Émoji à la FIN du titre : séjour → groupe (☀️🏖️⛰️…), trajet → mode (✈️🚆🚗).
   const endEmoji = isSejour ? getSejourEmoji(o.titre) : getTrajetEmoji(o.type);
   const titleText = endEmoji ? `${o.titre} ${endEmoji}` : o.titre;
-  const titleEl = el("span", { class: "card-title" }, titleText);
+  const titleEl = el("span", { class: "card-title", html: twemojify(titleText) });
   if (isSejour && o.tentatif) titleEl.appendChild(el("span", { class: "tentatif-badge" }, "à confirmer"));
   const shareIconBtn = el("button", { class: "card-share-icon", type: "button", title: "Partager" }, iconSpan("share"));
   shareIconBtn.addEventListener("click", (e) => { e.stopPropagation(); shareItem(item, userId); });
